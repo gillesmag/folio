@@ -73,12 +73,51 @@
 		return () => observer.disconnect();
 	});
 
-	// Mermaid is only fetched for documents that contain a diagram.
+	// Mermaid is only fetched for documents that contain a diagram. Each block is
+	// rendered on its own, so one that fails to parse cannot poison the next, and
+	// a failed block shows its source instead of vanishing.
 	onMount(() => {
 		if (!doc.meta.hasMermaid) return;
-		import('mermaid').then(({ default: mermaid }) => {
-			mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
-			mermaid.run({ querySelector: '.folio-doc pre.mermaid' });
+		import('mermaid').then(async ({ default: mermaid }) => {
+			// SVG text labels only: no HTML (and so no images or anchors) can appear inside a node.
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: 'neutral',
+				securityLevel: 'strict',
+				flowchart: { htmlLabels: false },
+				class: { htmlLabels: false },
+				// Quoted labels still go through Mermaid's HTML path; forbid anything that loads or navigates.
+				dompurifyConfig: {
+					FORBID_TAGS: [
+						'img',
+						'a',
+						'video',
+						'audio',
+						'iframe',
+						'object',
+						'embed',
+						'form',
+						'input',
+						'style',
+						'svg',
+						'math'
+					],
+					ALLOW_DATA_ATTR: false
+				}
+			});
+			const nodes = document.querySelectorAll<HTMLElement>('.folio-doc pre.mermaid');
+			let i = 0;
+			for (const node of nodes) {
+				const source = node.textContent ?? '';
+				try {
+					const { svg } = await mermaid.render(`folio-mermaid-${i++}`, source, node);
+					node.innerHTML = svg;
+				} catch {
+					node.textContent = source;
+					node.classList.add('mermaid-failed');
+					node.setAttribute('title', 'This diagram could not be rendered');
+				}
+			}
 		});
 	});
 

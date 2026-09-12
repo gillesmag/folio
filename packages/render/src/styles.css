@@ -188,29 +188,39 @@
 .folio-doc li > p + p {
 	margin-top: 0.6em;
 }
+/* Task items keep normal block flow so nested lists, quotes and code inside them lay out normally. */
 .folio-doc ul.contains-task-list {
 	padding-left: 0.4em;
 	list-style: none;
 }
 .folio-doc li.task-list-item {
-	display: flex;
-	gap: 0.55em;
-	align-items: baseline;
+	padding-left: 1.6em;
+	text-indent: -1.6em;
 }
-.folio-doc li.task-list-item input {
-	position: relative;
-	top: 0.1em;
-	margin: 0;
+.folio-doc li.task-list-item > * {
+	text-indent: 0;
+}
+.folio-doc li.task-list-item > input:first-child {
+	width: 1.05em;
+	height: 1.05em;
+	margin: 0 0.55em 0 0;
+	vertical-align: -0.15em;
 	accent-color: var(--doc-accent);
 }
-.folio-doc li.task-list-item:has(input:checked) {
+.folio-doc li.task-list-item:has(> input:checked) {
 	color: var(--doc-muted);
-	text-decoration: line-through;
-	text-decoration-color: color-mix(in srgb, var(--doc-muted) 50%, transparent);
+}
+/* A plain item in a list that also holds tasks keeps its bullet. */
+.folio-doc ul.contains-task-list > li:not(.task-list-item) {
+	list-style: disc;
+	margin-left: 1.1em;
 }
 
 /* Code blocks: Shiki dual-theme output plus plain <pre> fallbacks. */
 .folio-doc pre {
+	/* Never wrap code character by character; scroll instead. */
+	overflow-wrap: normal;
+	white-space: pre;
 	font-family: var(--doc-mono);
 	font-size: 0.875rem;
 	line-height: 1.6;
@@ -252,6 +262,14 @@
 	max-width: 100%;
 	height: auto;
 	margin: 0 auto;
+}
+/* Source shown in place of a diagram that failed to parse. */
+.folio-doc pre.mermaid.mermaid-failed {
+	text-align: left;
+	padding: 0.9rem 1.1rem;
+	border: 1px dashed var(--doc-border);
+	background: var(--doc-surface);
+	color: var(--doc-muted);
 }
 
 /* Tables */
