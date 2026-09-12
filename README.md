@@ -31,11 +31,56 @@ Checks: `pnpm check`, `pnpm test`, `cargo build --release`.
 
 ## Deploy
 
-1. Create resources: `wrangler d1 create folio` (put the id in `apps/api/wrangler.jsonc`) and `wrangler r2 bucket create folio-docs`.
-2. Secrets: `wrangler secret put BETTER_AUTH_SECRET|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET` in `apps/api`. Set `APP_URL` to the web origin.
-3. `pnpm --filter @folio/api db:migrate && pnpm --filter @folio/api deploy`
-4. `pnpm --filter @folio/web deploy` (the web Worker binds to `folio-api` as a service binding).
-5. Enable D1 read replication on the database in the dashboard.
+Everything runs from `apps/api` unless noted. Wrangler's login is shared by both apps.
+
+```sh
+git clone git@github.com:gillesmag/folio.git && cd folio
+pnpm install
+cd apps/api
+pnpm exec wrangler login                       # browser OAuth; grants every permission Wrangler needs
+
+# 1. Resources
+pnpm exec wrangler d1 create folio             # copy the printed database_id into wrangler.jsonc (REPLACE_WITH_D1_ID)
+pnpm exec wrangler r2 bucket create folio-docs
+
+# 2. Schema
+pnpm exec wrangler d1 migrations apply folio --remote
+
+# 3. First API deploy (APP_URL is still the localhost placeholder; fixed in step 6)
+pnpm run deploy
+
+# 4. Secrets (the Worker must exist first)
+openssl rand -base64 32 | pnpm exec wrangler secret put BETTER_AUTH_SECRET
+printf '%s' 'YOUR_GOOGLE_CLIENT_ID'     | pnpm exec wrangler secret put GOOGLE_CLIENT_ID
+printf '%s' 'YOUR_GOOGLE_CLIENT_SECRET' | pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET
+
+# 5. Web app (binds to the API Worker deployed in step 3; prints its URL)
+cd ../web
+pnpm run deploy                                # e.g. https://folio-web.<subdomain>.workers.dev
+
+# 6. Point the API at the web origin and redeploy it
+cd ../api
+#    edit wrangler.jsonc: "APP_URL": "https://folio-web.<subdomain>.workers.dev"
+pnpm run deploy
+
+# 7. Google Cloud Console → your OAuth client:
+#    Authorized JavaScript origin:  https://folio-web.<subdomain>.workers.dev
+#    Authorized redirect URI:       https://folio-web.<subdomain>.workers.dev/auth/callback/google
+
+# 8. Smoke test
+curl -i https://folio-web.<subdomain>.workers.dev/api/health   # 204
+folio login --server https://folio-web.<subdomain>.workers.dev
+```
+
+Enable D1 read replication on the database in the dashboard (Settings → Read replication) once traffic comes from more than one region.
+
+### Custom domain
+
+Add to `apps/web/wrangler.jsonc` and redeploy the web app, then set `APP_URL` to the same origin and redeploy the API. Update the Google OAuth client to match.
+
+```jsonc
+"routes": [{ "pattern": "folio.example.com", "custom_domain": true }]
+```
 
 ### Production checklist
 
