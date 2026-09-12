@@ -74,6 +74,21 @@ folio login --server https://folio-web.<subdomain>.workers.dev
 
 Enable D1 read replication on the database in the dashboard (Settings → Read replication) once traffic comes from more than one region.
 
+### Automatic deploys from GitHub
+
+Workers Builds deploys on every push once each Worker is connected to the repo. Do the manual deploy above once first, so the resources, secrets, and the service binding exist. Then, in the dashboard, open each Worker → Settings → Build → Connect to Git and use:
+
+| Setting                      | `folio-api`                                          | `folio-web`                                                            |
+| ---------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------- |
+| Repository / branch          | `gillesmag/folio`, `main`                            | same                                                                   |
+| Root directory               | `apps/api`                                           | `apps/web`                                                             |
+| Build command                | leave empty                                          | `pnpm run build`                                                       |
+| Deploy command               | `pnpm run deploy` (runs D1 migrations, then deploys) | `pnpm exec wrangler deploy`                                            |
+| Build watch paths            | `apps/api/**`, `packages/**`, `pnpm-lock.yaml`       | `apps/web/**`, `packages/**`, `pnpm-lock.yaml`                         |
+| Non-production branch builds | off                                                  | optional (previews cannot sign in; `APP_URL` is the production origin) |
+
+Node comes from `.node-version`; pnpm from the `packageManager` field. Worker secrets persist across deploys, so nothing goes into build variables. Connect `folio-api` first so the web build always finds its binding.
+
 ### Custom domain
 
 Add to `apps/web/wrangler.jsonc` and redeploy the web app, then set `APP_URL` to the same origin and redeploy the API. Update the Google OAuth client to match.
