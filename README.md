@@ -11,6 +11,7 @@ Push markdown documents with rich content, read them instantly, comment on any b
 | `packages/contract` | Effect Schema models and the `HttpApi` definition shared by server and clients. OpenAPI is generated from it.   |
 | `packages/render`   | unified pipeline: GFM, math (KaTeX), Shiki (JS regex engine), Mermaid passthrough, sanitizer, stable block ids. |
 | `cli`               | Rust CLI (`folio push`, `pull`, `list`, `comments`, …) with device-flow login and API-key support.              |
+| `skills/cli`        | Agent skill that teaches Claude Code and similar tools the CLI workflow.                                        |
 
 Rendering happens once on write inside the API Worker. Each version of a document is an immutable JSON object in R2 (`docs/<id>/<version>.json`: source, rendered HTML, render metadata); D1 keeps only the index row (owner, title, visibility, current version) and comments. Reads go index row → Cache API → R2, and because the version is in the key, cache entries live for a year and never go stale. Anonymous views of public and unlisted pages are additionally cached whole at the edge for a minute. The same HTML will feed the iOS app's web view.
 
