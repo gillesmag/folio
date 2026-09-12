@@ -1,0 +1,21 @@
+{
+	"name": "folio",
+	"private": true,
+	"packageManager": "pnpm@11.18.0",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"dev": "pnpm -r --parallel --filter ./apps/* dev",
+		"build": "pnpm -r build",
+		"check": "pnpm -r check",
+		"test": "pnpm -r test",
+		"format": "prettier --write ."
+	},
+	"devDependencies": {
+		"prettier": "^3.6.2",
+		"prettier-plugin-svelte": "^3.5.2",
+		"prettier-plugin-tailwindcss": "^0.8.1",
+		"typescript": "^5.9.2"
+	}
+}

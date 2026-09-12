@@ -1,0 +1,31 @@
+{
+	"name": "@folio/api",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"check": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"cf-typegen": "wrangler types ./src/worker-configuration.d.ts",
+		"db:migrate:local": "wrangler d1 migrations apply folio --local",
+		"db:migrate": "wrangler d1 migrations apply folio --remote"
+	},
+	"dependencies": {
+		"@better-auth/api-key": "1.7.4",
+		"@cloudflare/workers-types": "^5.20260911.1",
+		"@effect/sql-d1": "4.0.0-rc.115",
+		"@folio/contract": "workspace:*",
+		"@folio/render": "workspace:*",
+		"better-auth": "^1.7.4",
+		"effect": "4.0.0-rc.115"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.22.0",
+		"@effect/vitest": "4.0.0-rc.115",
+		"typescript": "^5.9.2",
+		"vitest": "^5.0.0",
+		"wrangler": "^4.131.1"
+	}
+}

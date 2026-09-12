@@ -1,0 +1,370 @@
+/*
+ * Shared document typography. Used by the web app and bundled into the iOS web
+ * view, so it owns everything about how rendered markdown looks and depends on
+ * nothing but the --doc-* tokens below. Hosts override the tokens; the web app
+ * maps them to its shadcn palette and toggles dark mode with a `.dark` class.
+ */
+.folio-doc {
+	--doc-fg: #1a1a1a;
+	--doc-muted: #6b6b6b;
+	--doc-border: #e6e6e6;
+	--doc-surface: #f6f6f6;
+	--doc-link: #1a1a1a;
+	--doc-accent: #2563eb;
+	--doc-selection: rgba(37, 99, 235, 0.08);
+	--doc-font:
+		ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--doc-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+	font-family: var(--doc-font);
+	font-size: 1.0625rem;
+	line-height: 1.7;
+	color: var(--doc-fg);
+	max-width: 70ch;
+	overflow-wrap: anywhere;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+}
+.dark .folio-doc {
+	--doc-fg: #e8e8e8;
+	--doc-muted: #9a9a9a;
+	--doc-border: #2e2e2e;
+	--doc-surface: #1f1f1f;
+	--doc-link: #e8e8e8;
+	--doc-accent: #7aa2ff;
+	--doc-selection: rgba(122, 162, 255, 0.12);
+}
+
+/* Vertical rhythm: one rule for block spacing, headings pull extra space above. */
+.folio-doc > * + * {
+	margin-top: 1.15em;
+}
+.folio-doc > :first-child {
+	margin-top: 0;
+}
+.folio-doc [data-block-id] {
+	scroll-margin-top: 5rem;
+}
+
+/* Headings */
+.folio-doc h1,
+.folio-doc h2,
+.folio-doc h3,
+.folio-doc h4,
+.folio-doc h5,
+.folio-doc h6 {
+	font-weight: 650;
+	line-height: 1.25;
+	letter-spacing: -0.015em;
+	color: var(--doc-fg);
+}
+.folio-doc > h1 {
+	font-size: 2.125rem;
+	letter-spacing: -0.025em;
+	margin-top: 0.4em;
+	margin-bottom: 0.2em;
+}
+.folio-doc > h2 {
+	font-size: 1.5rem;
+	margin-top: 2.2em;
+	padding-bottom: 0.3em;
+	border-bottom: 1px solid var(--doc-border);
+}
+.folio-doc > h3 {
+	font-size: 1.2rem;
+	margin-top: 1.9em;
+}
+.folio-doc > h4 {
+	font-size: 1.05rem;
+	margin-top: 1.7em;
+}
+.folio-doc > h5,
+.folio-doc > h6 {
+	font-size: 0.95rem;
+	color: var(--doc-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+.folio-doc > h1 + *,
+.folio-doc > h2 + *,
+.folio-doc > h3 + *,
+.folio-doc > h4 + * {
+	margin-top: 0.7em;
+}
+
+/* Inline */
+.folio-doc a {
+	color: var(--doc-link);
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.2em;
+	text-decoration-color: color-mix(in srgb, var(--doc-link) 35%, transparent);
+	transition: text-decoration-color 120ms;
+}
+.folio-doc a:hover {
+	text-decoration-color: var(--doc-link);
+}
+.folio-doc strong {
+	font-weight: 650;
+}
+.folio-doc code {
+	font-family: var(--doc-mono);
+	font-size: 0.875em;
+	background: var(--doc-surface);
+	border: 1px solid var(--doc-border);
+	border-radius: 0.3em;
+	padding: 0.1em 0.35em;
+}
+.folio-doc kbd {
+	font-family: var(--doc-mono);
+	font-size: 0.8em;
+	border: 1px solid var(--doc-border);
+	border-bottom-width: 2px;
+	border-radius: 0.3em;
+	padding: 0.05em 0.4em;
+}
+.folio-doc mark {
+	background: color-mix(in srgb, #facc15 40%, transparent);
+	color: inherit;
+}
+.folio-doc del {
+	color: var(--doc-muted);
+}
+.folio-doc sup a {
+	text-decoration: none;
+	font-size: 0.8em;
+}
+
+/* Paragraph-level */
+.folio-doc blockquote {
+	margin-left: 0;
+	padding-left: 1.1em;
+	border-left: 3px solid var(--doc-border);
+	color: var(--doc-muted);
+}
+.folio-doc blockquote > * + * {
+	margin-top: 0.8em;
+}
+.folio-doc hr {
+	border: 0;
+	border-top: 1px solid var(--doc-border);
+	margin-top: 2.5em;
+	margin-bottom: 2.5em;
+}
+.folio-doc img,
+.folio-doc video {
+	max-width: 100%;
+	height: auto;
+	border-radius: 0.5rem;
+}
+
+/* Lists. Markers are set explicitly because host resets (Tailwind preflight) remove them. */
+.folio-doc ul,
+.folio-doc ol {
+	padding-left: 1.5em;
+}
+.folio-doc ul {
+	list-style: disc;
+}
+.folio-doc ul ul {
+	list-style: circle;
+}
+.folio-doc ol {
+	list-style: decimal;
+}
+.folio-doc ol ol {
+	list-style: lower-alpha;
+}
+.folio-doc li::marker {
+	color: var(--doc-muted);
+}
+.folio-doc li + li {
+	margin-top: 0.35em;
+}
+.folio-doc li > ul,
+.folio-doc li > ol {
+	margin-top: 0.35em;
+}
+.folio-doc li > p + p {
+	margin-top: 0.6em;
+}
+.folio-doc ul.contains-task-list {
+	padding-left: 0.4em;
+	list-style: none;
+}
+.folio-doc li.task-list-item {
+	display: flex;
+	gap: 0.55em;
+	align-items: baseline;
+}
+.folio-doc li.task-list-item input {
+	position: relative;
+	top: 0.1em;
+	margin: 0;
+	accent-color: var(--doc-accent);
+}
+.folio-doc li.task-list-item:has(input:checked) {
+	color: var(--doc-muted);
+	text-decoration: line-through;
+	text-decoration-color: color-mix(in srgb, var(--doc-muted) 50%, transparent);
+}
+
+/* Code blocks: Shiki dual-theme output plus plain <pre> fallbacks. */
+.folio-doc pre {
+	font-family: var(--doc-mono);
+	font-size: 0.875rem;
+	line-height: 1.6;
+	padding: 0.9rem 1.1rem;
+	border-radius: 0.6rem;
+	border: 1px solid var(--doc-border);
+	background: var(--doc-surface);
+	overflow-x: auto;
+	tab-size: 2;
+}
+.folio-doc pre code {
+	font-size: inherit;
+	background: none;
+	border: 0;
+	padding: 0;
+	border-radius: 0;
+}
+/* Only token colours come from the theme; the block background is ours so it matches the page. */
+.folio-doc pre.shiki,
+.folio-doc pre.shiki span {
+	color: var(--shiki-light);
+	background-color: transparent;
+}
+.dark .folio-doc pre.shiki,
+.dark .folio-doc pre.shiki span {
+	color: var(--shiki-dark);
+}
+.folio-doc pre.shiki {
+	background-color: var(--doc-surface);
+}
+.folio-doc pre.mermaid {
+	border: 0;
+	background: none;
+	padding: 0;
+	text-align: center;
+	overflow-x: auto;
+}
+.folio-doc pre.mermaid svg {
+	max-width: 100%;
+	height: auto;
+	margin: 0 auto;
+}
+
+/* Tables */
+.folio-doc table {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	overflow-x: auto;
+	border-collapse: collapse;
+	font-size: 0.9375em;
+	line-height: 1.5;
+}
+.folio-doc thead th {
+	text-align: left;
+	font-weight: 600;
+	border-bottom: 2px solid var(--doc-border);
+	padding: 0.45em 0.75em;
+	white-space: nowrap;
+}
+.folio-doc td {
+	border-bottom: 1px solid var(--doc-border);
+	padding: 0.5em 0.75em;
+	vertical-align: top;
+}
+.folio-doc th:first-child,
+.folio-doc td:first-child {
+	padding-left: 0.25em;
+}
+.folio-doc tbody tr:nth-child(even) {
+	background: color-mix(in srgb, var(--doc-surface) 60%, transparent);
+}
+
+/* Math */
+.folio-doc .katex-display {
+	overflow-x: auto;
+	overflow-y: hidden;
+	padding: 0.4em 0;
+}
+.folio-doc .katex {
+	font-size: 1.05em;
+}
+
+/* Footnotes */
+.folio-doc .footnotes {
+	margin-top: 3em;
+	padding-top: 1em;
+	border-top: 1px solid var(--doc-border);
+	font-size: 0.9em;
+	color: var(--doc-muted);
+}
+.folio-doc .footnotes h2 {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+}
+
+/* Comment anchoring. Hosts add `.can-comment` when the viewer may comment. */
+.folio-doc [data-block-id] {
+	position: relative;
+	border-radius: 0.3rem;
+	transition: background-color 120ms;
+}
+.folio-doc.can-comment [data-block-id] {
+	cursor: pointer;
+}
+.folio-doc.can-comment [data-block-id]:hover::before {
+	content: '+';
+	position: absolute;
+	left: -1.9rem;
+	top: 0.05em;
+	width: 1.35rem;
+	height: 1.35rem;
+	line-height: 1.3rem;
+	text-align: center;
+	font-size: 0.95rem;
+	font-weight: 500;
+	border-radius: 999px;
+	border: 1px solid var(--doc-border);
+	color: var(--doc-muted);
+	background: var(--doc-surface);
+}
+.folio-doc [data-block-id][data-comments]::after {
+	content: attr(data-comments);
+	position: absolute;
+	left: -1.9rem;
+	top: 0.05em;
+	min-width: 1.35rem;
+	height: 1.35rem;
+	line-height: 1.35rem;
+	padding: 0 0.3rem;
+	text-align: center;
+	font-size: 0.7rem;
+	font-weight: 600;
+	font-family: var(--doc-font);
+	border-radius: 999px;
+	color: #fff;
+	background: var(--doc-accent);
+	box-sizing: border-box;
+}
+.folio-doc.can-comment [data-block-id][data-comments]:hover::before {
+	display: none;
+}
+.folio-doc [data-block-id].selected {
+	background: var(--doc-selection);
+	box-shadow: 0 0 0 0.5rem var(--doc-selection);
+}
+@media (max-width: 640px) {
+	.folio-doc.can-comment [data-block-id]:hover::before,
+	.folio-doc [data-block-id][data-comments]::after {
+		left: auto;
+		right: -0.25rem;
+		top: -0.6rem;
+	}
+}

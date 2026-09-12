@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.svelte-kit
+.wrangler
+.dev.vars
+.env
+*.local
+target
+.DS_Store

@@ -1,0 +1,7 @@
+node_modules
+.svelte-kit
+.wrangler
+target
+pnpm-lock.yaml
+apps/api/src/worker-configuration.d.ts
+apps/web/src/lib/components/ui

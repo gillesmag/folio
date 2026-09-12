@@ -1,0 +1,14 @@
+[workspace]
+resolver = "3"
+members = ["cli"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+opt-level = "z"
+panic = "abort"
