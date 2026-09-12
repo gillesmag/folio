@@ -11,6 +11,7 @@ declare global {
 			env?: {
 				API?: Fetcher;
 			};
+			context?: ExecutionContext;
 		}
 	}
 }

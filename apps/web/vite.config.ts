@@ -13,7 +13,7 @@ export default defineConfig({
 			},
 			adapter: adapter(),
 			csp: {
-				mode: 'auto',
+				mode: 'hash',
 				directives: {
 					'default-src': ['self'],
 					'script-src': ['self'],

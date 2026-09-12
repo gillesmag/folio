@@ -17,7 +17,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	event.locals.user = null;
-	if (event.request.headers.get('cookie')?.includes('session_token')) {
+	const hasSession = event.request.headers.get('cookie')?.includes('session_token') ?? false;
+
+	// Anonymous views of a document page are cached whole at the edge for a
+	// minute. Private documents never reach a 200 for anonymous callers, so only
+	// public and unlisted pages ever enter the cache.
+	const pageCache =
+		!hasSession && event.request.method === 'GET' && /^\/d\/[A-Za-z0-9]+$/.test(pathname)
+			? edgeCache(event)
+			: null;
+	if (pageCache) {
+		const hit = await pageCache.match();
+		if (hit) return hit;
+	}
+
+	if (hasSession) {
 		const res = await apiFetch(
 			event,
 			new Request('http://api/api/me', {
@@ -41,5 +55,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (event.url.protocol === 'https:') {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 	}
+	if (pageCache && response.status === 200) pageCache.store(response);
 	return response;
+};
+
+/**
+ * Whole-page cache for anonymous document views, backed by the Cloudflare Cache
+ * API. Absent outside the Workers runtime (vite dev), in which case it is a no-op.
+ */
+const edgeCache = (event: Parameters<Handle>[0]['event']) => {
+	const context = event.platform?.context;
+	// The Workers runtime exposes `caches.default`; the DOM typings do not know it.
+	const store = (globalThis as { caches?: { default?: Cache } }).caches?.default;
+	if (!store || !context) return null;
+	const key = new Request(event.url.toString(), { method: 'GET' });
+	return {
+		// The runtime marks served entries with `CF-Cache-Status: HIT`.
+		match: () => store.match(key).catch(() => undefined),
+		store: (response: Response) => {
+			const copy = new Response(response.clone().body, response);
+			copy.headers.set('cache-control', 'public, s-maxage=60');
+			context.waitUntil(store.put(key, copy).catch(() => {}));
+		}
+	};
 };

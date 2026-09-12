@@ -102,7 +102,7 @@ export const authCall = async (
  * values. Encode to the JSON wire shape (ISO strings) before returning from load.
  */
 export const toJson = {
-	document: Schema.encodeSync(Document.json),
+	document: Schema.encodeSync(Document),
 	documents: Schema.encodeSync(Schema.Array(DocumentSummary)),
 	comments: Schema.encodeSync(Schema.Array(Comment.json))
 };

@@ -21,24 +21,24 @@ export class DocumentsApi extends HttpApiGroup.make('documents')
 		}),
 		HttpApiEndpoint.get('get', '/:id', {
 			params: { id: DocumentId },
-			success: Document.json,
+			success: Document,
 			error: [DocumentNotFound, Forbidden]
 		}),
 		HttpApiEndpoint.post('create', '/', {
 			payload: DocumentInput,
-			success: Document.json.pipe(HttpApiSchema.status(201)),
+			success: Document.pipe(HttpApiSchema.status(201)),
 			error: Unauthorized
 		}),
 		HttpApiEndpoint.put('replace', '/:id', {
 			params: { id: DocumentId },
 			payload: DocumentInput,
-			success: Document.json,
+			success: Document,
 			error: [Unauthorized, Forbidden, DocumentNotFound]
 		}),
 		HttpApiEndpoint.patch('update', '/:id', {
 			params: { id: DocumentId },
 			payload: DocumentPatch,
-			success: Document.json,
+			success: Document,
 			error: [Unauthorized, Forbidden, DocumentNotFound]
 		}),
 		HttpApiEndpoint.delete('remove', '/:id', {

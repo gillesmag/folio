@@ -12,7 +12,7 @@ Push markdown documents with rich content, read them instantly, comment on any b
 | `packages/render`   | unified pipeline: GFM, math (KaTeX), Shiki (JS regex engine), Mermaid passthrough, sanitizer, stable block ids. |
 | `cli`               | Rust CLI (`folio push`, `pull`, `list`, `comments`, …) with device-flow login and API-key support.              |
 
-Rendering happens once on write inside the API Worker. The HTML is stored in D1 and cached in KV, so a document view is one cached read and a template. The same HTML will feed the iOS app's web view.
+Rendering happens once on write inside the API Worker. Each version of a document is an immutable JSON object in R2 (`docs/<id>/<version>.json`: source, rendered HTML, render metadata); D1 keeps only the index row (owner, title, visibility, current version) and comments. Reads go index row → Cache API → R2, and because the version is in the key, cache entries live for a year and never go stale. Anonymous views of public and unlisted pages are additionally cached whole at the edge for a minute. The same HTML will feed the iOS app's web view.
 
 ## Develop
 
@@ -31,7 +31,7 @@ Checks: `pnpm check`, `pnpm test`, `cargo build --release`.
 
 ## Deploy
 
-1. Create resources: `wrangler d1 create folio`, `wrangler kv namespace create CACHE`; put the ids in `apps/api/wrangler.jsonc`.
+1. Create resources: `wrangler d1 create folio` (put the id in `apps/api/wrangler.jsonc`) and `wrangler r2 bucket create folio-docs`.
 2. Secrets: `wrangler secret put BETTER_AUTH_SECRET|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET` in `apps/api`. Set `APP_URL` to the web origin.
 3. `pnpm --filter @folio/api db:migrate && pnpm --filter @folio/api deploy`
 4. `pnpm --filter @folio/web deploy` (the web Worker binds to `folio-api` as a service binding).

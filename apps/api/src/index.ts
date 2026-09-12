@@ -6,7 +6,8 @@ import { HttpApiBuilder, HttpApiScalar } from 'effect/unstable/httpapi';
 import { AuthService } from './Auth.ts';
 import { AuthenticationLayer } from './Authentication.ts';
 import { Bindings } from './Bindings.ts';
-import { Cache } from './Cache.ts';
+import { Bodies } from './Bodies.ts';
+import { EdgeCache } from './EdgeCache.ts';
 import { Comments } from './Comments.ts';
 import { Documents } from './Documents.ts';
 import { CommentsHandlers } from './http/Comments.ts';
@@ -38,7 +39,7 @@ const makeAppLayer = (env: Env) => {
 	const bindings = Bindings.fromEnv(env);
 	const sql = D1Client.layer({ db: env.DB }).pipe(Layer.orDie);
 	const services = Layer.mergeAll(Documents.layer, Comments.layer, AuthService.layer).pipe(
-		Layer.provideMerge(Layer.mergeAll(Cache.layer, Render.layer, sql)),
+		Layer.provideMerge(Layer.mergeAll(Bodies.layer, EdgeCache.layer, Render.layer, sql)),
 		Layer.provideMerge(bindings)
 	);
 	return Layer.mergeAll(ApiRoutes, DocsRoute, AuthRoutes).pipe(
