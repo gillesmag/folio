@@ -4,6 +4,15 @@ import { bearer, deviceAuthorization } from 'better-auth/plugins';
 import { Context, Effect, Layer } from 'effect';
 import { Bindings } from './Bindings.ts';
 
+/** Refuse to start with a weak or missing signing secret rather than fall back to a default. */
+const requireSecret = (env: Env): string => {
+	const secret = env.BETTER_AUTH_SECRET;
+	if (!secret || secret.length < 32) {
+		throw new Error('BETTER_AUTH_SECRET must be set to at least 32 characters');
+	}
+	return secret;
+};
+
 export const makeAuth = (env: Env) =>
 	betterAuth({
 		appName: 'Folio',
@@ -12,7 +21,7 @@ export const makeAuth = (env: Env) =>
 		// The web app proxies /auth/* to this Worker, so the public origin is the app's.
 		baseURL: env.APP_URL,
 		basePath: '/auth',
-		secret: env.BETTER_AUTH_SECRET,
+		secret: requireSecret(env),
 		database: env.DB,
 		trustedOrigins: [env.APP_URL],
 		socialProviders: {
@@ -25,12 +34,25 @@ export const makeAuth = (env: Env) =>
 			// Avoid a D1 round trip on every request; the signed cookie carries the session for 5 minutes.
 			cookieCache: { enabled: true, maxAge: 5 * 60 }
 		},
+		// Auth endpoints (sign-in, device polling, key creation) are throttled per IP.
+		// Worker memory is per isolate, so the counters live in D1 (see migration 0002).
+		rateLimit: { enabled: true, storage: 'database', window: 60, max: 60 },
 		plugins: [
 			// `Authorization: Bearer <session token>` for the CLI after the device flow.
 			bearer(),
 			// `x-api-key` for agents; enableSessionForAPIKeys makes getSession resolve the key's user.
-			apiKey({ enableSessionForAPIKeys: true, defaultPrefix: 'folio_' }),
-			deviceAuthorization({ verificationUri: '/device' })
+			// The plugin's default per-key limit is 10 requests per day, which would break agents.
+			apiKey({
+				enableSessionForAPIKeys: true,
+				defaultPrefix: 'folio_',
+				rateLimit: { enabled: true, timeWindow: 60_000, maxRequests: 300 }
+			}),
+			deviceAuthorization({
+				verificationUri: '/device',
+				expiresIn: '10m',
+				// Only our CLI may start a device flow.
+				validateClient: (clientId) => clientId === 'folio-cli'
+			})
 		]
 	});
 

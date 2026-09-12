@@ -12,7 +12,14 @@
 		<h1 class="text-xl font-semibold">Request denied</h1>
 	{:else}
 		<h1 class="text-xl font-semibold">Connect a device</h1>
-		<p class="text-muted-foreground mt-2">Enter the code shown in your terminal.</p>
+		{#if data.client}
+			<p class="text-muted-foreground mt-2">
+				<span class="text-foreground font-medium">{data.client}</span> is asking to act as you. Only approve
+				a code you just saw in your own terminal.
+			</p>
+		{:else}
+			<p class="text-muted-foreground mt-2">Enter the code shown in your terminal.</p>
+		{/if}
 		<form method="post" action="?/approve" class="mt-6 flex flex-col gap-3">
 			<Input
 				name="user_code"

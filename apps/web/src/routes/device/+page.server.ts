@@ -2,9 +2,13 @@ import { fail, redirect } from '@sveltejs/kit';
 import { authCall } from '$lib/server/api';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = ({ locals, url }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals, url } = event;
 	if (!locals.user) redirect(303, `/login?next=${encodeURIComponent(url.pathname + url.search)}`);
-	return { userCode: url.searchParams.get('user_code') ?? '' };
+	const userCode = normalize(url.searchParams.get('user_code') ?? '');
+	// Look the code up so the page can say which client is asking before anything is approved.
+	const info = userCode ? await claim(event, userCode) : null;
+	return { userCode, client: info?.client_id ?? null, status: info?.status ?? null };
 };
 
 const normalize = (code: string) => code.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -36,7 +40,8 @@ export const actions: Actions = {
 		const claimed = await claim(event, userCode);
 		if (!claimed) return fail(400, { message: 'That code is invalid or expired', userCode });
 		const res = await authCall(event, '/device/approve', { userCode });
-		if (!res.ok) return fail(400, { message: await describe(res, 'Could not approve this code'), userCode });
+		if (!res.ok)
+			return fail(400, { message: await describe(res, 'Could not approve this code'), userCode });
 		return { approved: true, client: claimed.client_id ?? null };
 	},
 	deny: async (event) => {
@@ -45,7 +50,8 @@ export const actions: Actions = {
 		const userCode = normalize(String(form.get('user_code') ?? ''));
 		await claim(event, userCode);
 		const res = await authCall(event, '/device/deny', { userCode });
-		if (!res.ok) return fail(400, { message: await describe(res, 'Could not deny this code'), userCode });
+		if (!res.ok)
+			return fail(400, { message: await describe(res, 'Could not deny this code'), userCode });
 		return { denied: true };
 	}
 };

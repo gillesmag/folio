@@ -15,6 +15,6 @@ export class Comment extends Model.Class<Comment>('folio/Comment')({
 }) {}
 
 export class CommentInput extends Schema.Class<CommentInput>('folio/CommentInput')({
-	blockId: Schema.optional(Schema.NullOr(Schema.String)),
-	body: Schema.NonEmptyString
+	blockId: Schema.optional(Schema.NullOr(Schema.String.check(Schema.isMaxLength(64)))),
+	body: Schema.NonEmptyString.check(Schema.isMaxLength(20_000))
 }) {}

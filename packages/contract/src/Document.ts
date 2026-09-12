@@ -50,15 +50,19 @@ export class DocumentSummary extends Schema.Class<DocumentSummary>('folio/Docume
 	updatedAt: Schema.DateTimeUtcFromString
 }) {}
 
+/** Bounds keep a single D1 row (source + rendered HTML) under the 1 MB limit and cap render CPU. */
+export const Title = Schema.String.check(Schema.isMaxLength(300));
+export const Source = Schema.String.check(Schema.isMaxLength(300_000));
+
 export class DocumentInput extends Schema.Class<DocumentInput>('folio/DocumentInput')({
 	/** Optional; falls back to frontmatter title, then first heading, then "Untitled". */
-	title: Schema.optional(Schema.String),
-	source: Schema.String,
+	title: Schema.optional(Title),
+	source: Source,
 	visibility: Schema.optional(Visibility)
 }) {}
 
 export class DocumentPatch extends Schema.Class<DocumentPatch>('folio/DocumentPatch')({
-	title: Schema.optional(Schema.String),
-	source: Schema.optional(Schema.String),
+	title: Schema.optional(Title),
+	source: Schema.optional(Source),
 	visibility: Schema.optional(Visibility)
 }) {}

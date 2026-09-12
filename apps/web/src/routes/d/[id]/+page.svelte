@@ -4,6 +4,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
+	// Bundled with hashed URL and fonts, so math never depends on a third-party CDN.
+	import katexCss from 'katex/dist/katex.min.css?url';
 
 	let { data, form } = $props();
 	const doc = $derived(data.document);
@@ -91,7 +93,7 @@
 <svelte:head>
 	<title>{doc.title} · Folio</title>
 	{#if doc.meta.hasMath}
-		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" />
+		<link rel="stylesheet" href={katexCss} />
 	{/if}
 </svelte:head>
 

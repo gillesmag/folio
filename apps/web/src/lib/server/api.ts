@@ -143,7 +143,18 @@ export const forwardSetCookies = (event: RequestEvent, res: Response): void => {
 					break;
 			}
 		}
-		if (opts.maxAge !== undefined && opts.maxAge <= 0) event.cookies.delete(name, { path: opts.path ?? '/' });
+		if (opts.maxAge !== undefined && opts.maxAge <= 0)
+			event.cookies.delete(name, { path: opts.path ?? '/' });
 		else event.cookies.set(name, value, opts);
 	}
+};
+
+/**
+ * Only same-origin paths may be used as post-login destinations. Anything else
+ * (absolute URLs, protocol-relative `//host`, backslash tricks) falls back to `/`.
+ */
+export const safeNext = (value: string | null | undefined): string => {
+	if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\'))
+		return '/';
+	return value;
 };
