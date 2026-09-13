@@ -145,6 +145,9 @@ importers:
       '@folio/render':
         specifier: workspace:*
         version: link:../../packages/render
+      '@lezer/highlight':
+        specifier: ^1.2.3
+        version: 1.2.3
       effect:
         specifier: 4.0.0-rc.115
         version: 4.0.0-rc.115
@@ -8250,7 +8253,7 @@ snapshots:
 
   tsx@4.23.13:
     dependencies:
-      esbuild: 0.28.1
+      esbuild: 0.28.2
     optionalDependencies:
       fsevents: 2.3.3
 

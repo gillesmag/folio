@@ -2,6 +2,7 @@
 	import '../app.css';
 	import '@folio/render/styles.css';
 	import type { Component } from 'svelte';
+	import { ModeWatcher } from 'mode-watcher';
 	import AppHeader from '$lib/components/app-header.svelte';
 
 	let { data, children } = $props();
@@ -28,6 +29,9 @@
 </svelte:head>
 
 <svelte:window {onkeydown} />
+
+<!-- Sets the `dark` class on <html> before first paint (persisted choice, else the OS setting). -->
+<ModeWatcher themeColors={{ light: '#ffffff', dark: '#0a0a0a' }} />
 
 <div class="flex min-h-svh flex-col">
 	<AppHeader user={data.user} onOpenPalette={openPalette} />

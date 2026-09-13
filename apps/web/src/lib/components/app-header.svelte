@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { toggleMode } from 'mode-watcher';
+	import MoonIcon from '@lucide/svelte/icons/moon';
+	import SunIcon from '@lucide/svelte/icons/sun';
 	import { Button } from '$lib/components/ui/button';
 	import { Kbd } from '$lib/components/ui/kbd';
 
@@ -13,6 +16,11 @@
 		<Button variant="outline" size="sm" class="text-muted-foreground gap-2" onclick={onOpenPalette}>
 			<span class="hidden sm:inline">Search or jump to…</span>
 			<Kbd>⌘K</Kbd>
+		</Button>
+		<!-- Both icons are in the markup and CSS picks one, so SSR and hydration agree without knowing the mode. -->
+		<Button variant="ghost" size="icon-sm" onclick={toggleMode} aria-label="Toggle dark mode">
+			<SunIcon class="dark:hidden" />
+			<MoonIcon class="hidden dark:block" />
 		</Button>
 		{#if user}
 			<Button href="/new" size="sm">New</Button>

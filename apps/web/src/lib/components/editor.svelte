@@ -16,15 +16,63 @@
 			import('@codemirror/view'),
 			import('@codemirror/state'),
 			import('@codemirror/lang-markdown'),
-			import('@codemirror/language')
+			import('@codemirror/language'),
+			import('@lezer/highlight')
 		]).then(
 			([
 				{ EditorView, keymap, lineNumbers, highlightActiveLine },
 				{ EditorState },
 				{ markdown },
-				{ defaultHighlightStyle, syntaxHighlighting }
+				{ HighlightStyle, syntaxHighlighting },
+				{ tags }
 			]) => {
 				if (!host) return;
+				// Every colour is a palette token, so light and dark mode both read well
+				// and switching mode restyles the editor with no rebuild.
+				const highlight = HighlightStyle.define([
+					{ tag: tags.heading, fontWeight: 'bold' },
+					{ tag: tags.emphasis, fontStyle: 'italic' },
+					{ tag: tags.strong, fontWeight: 'bold' },
+					{ tag: tags.strikethrough, textDecoration: 'line-through' },
+					{ tag: tags.link, textDecoration: 'underline' },
+					{ tag: [tags.url, tags.escape], color: 'var(--muted-foreground)' },
+					{ tag: tags.monospace, color: 'var(--muted-foreground)' },
+					{
+						tag: [tags.processingInstruction, tags.contentSeparator],
+						color: 'var(--muted-foreground)'
+					},
+					{ tag: [tags.labelName, tags.meta], color: 'var(--muted-foreground)' },
+					{ tag: tags.quote, color: 'var(--muted-foreground)' },
+					{ tag: tags.comment, color: 'var(--muted-foreground)', fontStyle: 'italic' }
+				]);
+				const theme = EditorView.theme({
+					'&': {
+						fontSize: '14px',
+						minHeight: '60vh',
+						color: 'var(--foreground)',
+						backgroundColor: 'var(--background)'
+					},
+					'.cm-content': {
+						fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+						caretColor: 'var(--foreground)'
+					},
+					'.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--foreground)' },
+					'&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
+						{ backgroundColor: 'color-mix(in oklab, var(--foreground) 18%, transparent)' },
+					'.cm-activeLine': {
+						backgroundColor: 'color-mix(in oklab, var(--foreground) 5%, transparent)'
+					},
+					'.cm-gutters': {
+						color: 'var(--muted-foreground)',
+						backgroundColor: 'var(--muted)',
+						borderRight: '1px solid var(--border)'
+					},
+					'.cm-activeLineGutter': {
+						color: 'var(--foreground)',
+						backgroundColor: 'color-mix(in oklab, var(--foreground) 8%, transparent)'
+					},
+					'&.cm-focused': { outline: 'none' }
+				});
 				view = new EditorView({
 					parent: host,
 					state: EditorState.create({
@@ -34,16 +82,12 @@
 							highlightActiveLine(),
 							EditorView.lineWrapping,
 							markdown(),
-							syntaxHighlighting(defaultHighlightStyle),
+							syntaxHighlighting(highlight),
 							keymap.of([]),
 							EditorView.updateListener.of((u) => {
 								if (u.docChanged) value = u.state.doc.toString();
 							}),
-							EditorView.theme({
-								'&': { fontSize: '14px', minHeight: '60vh' },
-								'.cm-content': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
-								'&.cm-focused': { outline: 'none' }
-							})
+							theme
 						]
 					})
 				});

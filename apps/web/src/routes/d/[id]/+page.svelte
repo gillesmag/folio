@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { onMount } from 'svelte';
+	import { mode } from 'mode-watcher';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -75,14 +75,21 @@
 
 	// Mermaid is only fetched for documents that contain a diagram. Each block is
 	// rendered on its own, so one that fails to parse cannot poison the next, and
-	// a failed block shows its source instead of vanishing.
-	onMount(() => {
-		if (!doc.meta.hasMermaid) return;
+	// a failed block shows its source instead of vanishing. The diagram theme
+	// follows the colour mode, so a mode change renders every diagram again from
+	// the source kept on the node.
+	let mermaidRun = 0;
+	$effect(() => {
+		if (!doc.meta.hasMermaid || !article) return;
+		const theme = mode.current === 'dark' ? 'dark' : 'neutral';
+		const run = ++mermaidRun;
+		const nodes = article.querySelectorAll<HTMLElement>('pre.mermaid');
 		import('mermaid').then(async ({ default: mermaid }) => {
+			if (run !== mermaidRun) return;
 			// SVG text labels only: no HTML (and so no images or anchors) can appear inside a node.
 			mermaid.initialize({
 				startOnLoad: false,
-				theme: 'neutral',
+				theme,
 				securityLevel: 'strict',
 				flowchart: { htmlLabels: false },
 				class: { htmlLabels: false },
@@ -105,13 +112,15 @@
 					ALLOW_DATA_ATTR: false
 				}
 			});
-			const nodes = document.querySelectorAll<HTMLElement>('.folio-doc pre.mermaid');
 			let i = 0;
 			for (const node of nodes) {
-				const source = node.textContent ?? '';
+				if (run !== mermaidRun) return;
+				const source = (node.dataset.source ??= node.textContent ?? '');
 				try {
-					const { svg } = await mermaid.render(`folio-mermaid-${i++}`, source, node);
+					const { svg } = await mermaid.render(`folio-mermaid-${run}-${i++}`, source, node);
 					node.innerHTML = svg;
+					node.classList.remove('mermaid-failed');
+					node.removeAttribute('title');
 				} catch {
 					node.textContent = source;
 					node.classList.add('mermaid-failed');
