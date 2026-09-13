@@ -1,0 +1,56 @@
+---
+title: Markdown reference
+description: Supported Markdown syntax, title selection, comment anchors, and document limits.
+---
+
+## Supported syntax
+
+Folio supports headings, paragraphs, links, images, block quotes, lists, fenced code blocks, and GitHub Flavored Markdown. GFM adds tables, task lists, strikethrough, and autolinks.
+
+Fenced code blocks use the language name for syntax highlighting. Unrecognized languages fall back to plain text.
+
+Inline math uses `$...$`. Display math uses `$$...$$`. KaTeX renders both forms.
+
+A fenced code block with the language `mermaid` renders as a diagram in the web reader. A diagram that cannot render remains visible as source.
+
+Raw HTML in document Markdown is disabled. Rendered output is sanitized. Markdown documents do not execute MDX or JavaScript.
+
+## Frontmatter and titles
+
+YAML frontmatter appears at the beginning of a document:
+
+```md
+---
+title: Project notes
+---
+
+# First draft
+
+Document content.
+```
+
+Title selection uses the first nonempty value in this order:
+
+1. The explicit title passed by the client.
+2. The frontmatter `title`.
+3. The first level-one heading.
+4. `Untitled`.
+
+Frontmatter remains available in `meta.frontmatter` in the API response. It does not set document visibility.
+
+## Comment anchors
+
+Rendered blocks have a `data-block-id` attribute. A comment's `blockId` refers to that identifier. A `null` block ID refers to the whole document.
+
+For API comments, use a block ID from the current document's rendered HTML. Edits that change a block's content can change its ID.
+
+## Input limits
+
+| Field                   | Limit                           |
+| ----------------------- | ------------------------------- |
+| Document source         | 300,000 string length units     |
+| Explicit document title | 300 string length units         |
+| Comment body            | 1 to 20,000 string length units |
+| Comment block ID        | 64 string length units          |
+
+The schemas enforce JavaScript string length, measured in UTF-16 code units, rather than encoded byte size. Some characters use two units.

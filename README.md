@@ -4,14 +4,15 @@ Push markdown documents with rich content, read them instantly, comment on any b
 
 ## Layout
 
-| Path                | What it is                                                                                                      |
-| ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `apps/web`          | SvelteKit app on Workers (shadcn-svelte, Tailwind v4). Proxies `/api/*` and `/auth/*` to the API.               |
-| `apps/api`          | Effect 4 `HttpApi` Worker: documents, comments, Better Auth (Google, device flow, API keys), D1, KV cache.      |
-| `packages/contract` | Effect Schema models and the `HttpApi` definition shared by server and clients. OpenAPI is generated from it.   |
-| `packages/render`   | unified pipeline: GFM, math (KaTeX), Shiki (JS regex engine), Mermaid passthrough, sanitizer, stable block ids. |
-| `cli`               | Rust CLI (`folio push`, `pull`, `list`, `comments`, …) with device-flow login and API-key support.              |
-| `skills/cli`        | Agent skill that teaches Claude Code and similar tools the CLI workflow.                                        |
+| Path                | What it is                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`          | SvelteKit app on Workers (shadcn-svelte, Tailwind v4). Proxies `/api/*` and `/auth/*` to the API.                               |
+| `apps/docs`         | Fumadocs documentation website with usage guides, CLI and API references, `llms.txt`, and Cloudflare self-hosting instructions. |
+| `apps/api`          | Effect 4 `HttpApi` Worker: documents, comments, Better Auth (Google, device flow, API keys), D1, KV cache.                      |
+| `packages/contract` | Effect Schema models and the `HttpApi` definition shared by server and clients. OpenAPI is generated from it.                   |
+| `packages/render`   | unified pipeline: GFM, math (KaTeX), Shiki (JS regex engine), Mermaid passthrough, sanitizer, stable block ids.                 |
+| `cli`               | Rust CLI (`folio push`, `pull`, `list`, `comments`, …) with device-flow login and API-key support.                              |
+| `skills/cli`        | Agent skill that teaches Claude Code and similar tools the CLI workflow.                                                        |
 
 Rendering happens once on write inside the API Worker. Each version of a document is an immutable JSON object in R2 (`docs/<id>/<version>.json`: source, rendered HTML, render metadata); D1 keeps only the index row (owner, title, visibility, current version) and comments. Reads go index row → Cache API → R2, and because the version is in the key, cache entries live for a year and never go stale. Anonymous views of public and unlisted pages are additionally cached whole at the edge for a minute. The same HTML will feed the iOS app's web view.
 
@@ -31,6 +32,12 @@ Google OAuth redirect URI: `http://localhost:5173/auth/callback/google` (and the
 Checks: `pnpm check`, `pnpm test`, `cargo build --release`.
 
 CLI downloads and the tag-based release process are documented in [cli/README.md](cli/README.md).
+
+## Documentation website
+
+Run `pnpm --filter @folio/docs dev` and open <http://localhost:3000>. The site includes usage guides, generated CLI command help, API reference pages from `packages/contract`, and a [Cloudflare self-hosting guide](apps/docs/content/docs/self-hosting/cloudflare.mdx).
+
+`pnpm --filter @folio/docs build` exports the static website. See [apps/docs/README.md](apps/docs/README.md) for reference generation, preview, and deployment commands.
 
 ## Deploy
 

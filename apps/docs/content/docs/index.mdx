@@ -1,0 +1,32 @@
+---
+title: Folio documentation
+description: Publish Markdown documents, share rich content, and collect comments from people and agents.
+---
+
+Folio turns Markdown into a document you can read in a browser. Documents support code highlighting, tables, math, and Mermaid diagrams. Comments can refer to a specific block or the whole document.
+
+You can create and edit documents in the web app, push local files with the CLI, or call the HTTP API from a script. Each account has its own document list. New documents are private.
+
+## Start here
+
+- [Publish your first document](/docs/quickstart).
+- [Install the CLI](/docs/installation).
+- [Write and update documents](/docs/guides/documents).
+- [Share documents and collect feedback](/docs/guides/sharing).
+- [Use Folio with agents](/docs/guides/agents).
+
+## Reference
+
+- [CLI reference](/docs/cli) covers commands, flags, output, and configuration.
+- [API reference](/docs/api) covers authentication, endpoints, and generated request and response schemas.
+- [Markdown reference](/docs/guides/markdown) lists supported syntax and content limits.
+
+## Run your own instance
+
+[Self-host Folio on Cloudflare](/docs/self-hosting/cloudflare) with Workers, D1, and R2. You can also [run the apps locally](/docs/self-hosting/local-development).
+
+## Documentation for agents
+
+[llms.txt](/llms.txt) indexes the documentation. [llms-full.txt](/llms-full.txt) contains every page as Markdown, including endpoint schemas. Each page also has a **View as Markdown** link.
+
+The documentation website is separate from your Folio instance. API requests and CLI commands use the web app's origin.

@@ -1,0 +1,50 @@
+---
+title: CLI reference
+description: Commands, global options, output formats, and exit behavior for the folio executable.
+---
+
+```text
+folio [OPTIONS] <COMMAND>
+```
+
+## Global options
+
+| Option              | Meaning                                                             |
+| ------------------- | ------------------------------------------------------------------- |
+| `--server <SERVER>` | Folio web origin. Overrides `FOLIO_SERVER` and saved configuration. |
+| `--json`            | JSON output for `whoami`, `push`, `list`, and `comments`.           |
+| `-h`, `--help`      | Help text.                                                          |
+| `-V`, `--version`   | CLI version.                                                        |
+
+Global `--server` and `--json` options can appear before or after a subcommand. The server URL has no `/api` suffix.
+
+## Commands
+
+| Command               | Behavior                                                              |
+| --------------------- | --------------------------------------------------------------------- |
+| `login`               | Starts a browser device flow and stores the session token and server. |
+| `logout`              | Removes the locally stored token for the selected server.             |
+| `whoami`              | Prints the authenticated user's name and email.                       |
+| `push <FILE>`         | Creates a document, or replaces one with `--id`. `-` reads stdin.     |
+| `list`                | Lists your documents in descending update order.                      |
+| `pull <ID>`           | Prints the document's Markdown source, or writes it with `--output`.  |
+| `open <ID>`           | Opens the document URL in the browser.                                |
+| `comments <ID>`       | Lists comments in ascending creation order.                           |
+| `rm <ID>`             | Deletes a document you own without a confirmation prompt.             |
+| `completions <SHELL>` | Prints shell completion code without requiring a configured server.   |
+
+[Command help](/docs/cli/commands) contains every subcommand's arguments and options, generated from the executable.
+
+## Output
+
+`push` prints the document URL by default. With `--json`, it prints `id`, `title`, `visibility`, `version`, and `updatedAt`.
+
+`list --json` prints an array with those same summary fields. `comments --json` prints `id`, `blockId`, `body`, `resolved`, and `createdAt` for each comment. `whoami --json` prints `id`, `name`, and `email`.
+
+`pull` always returns Markdown, including when `--json` is set. `pull --output` writes only the source to the file. Login, logout, file-write, and deletion status messages use stderr. Errors also use stderr and exit with a nonzero status.
+
+## Authentication
+
+`whoami`, `push`, `list`, and `rm` require credentials. `pull` and `comments` send credentials when available and allow anonymous reads of public or unlisted documents. `open` only opens a URL.
+
+`logout` removes local credentials. It does not revoke the server session or unset environment variables. See [configuration](/docs/cli/configuration).

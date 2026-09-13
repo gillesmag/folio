@@ -1,0 +1,43 @@
+---
+title: API reference
+description: HTTP endpoints for documents, comments, health checks, and the current user.
+---
+
+The API lives at `/api` on your Folio web origin, for example `https://folio.example.com/api`. Request and response bodies use JSON unless the endpoint returns `204 No Content`.
+
+The endpoint pages are generated from `packages/contract`. This site's [OpenAPI schema](/openapi.json) describes the checked-out version. Your instance serves its own schema at `/api/openapi.json` and interactive API docs at `/api/docs`.
+
+Authentication is implemented by the server's middleware. The generated contract does not declare OpenAPI security schemes. The [authentication reference](/docs/api/authentication) defines credential headers and access rules for these endpoints.
+
+## Documents
+
+| Method   | Path                  | Operation                                                            |
+| -------- | --------------------- | -------------------------------------------------------------------- |
+| `GET`    | `/api/documents`      | [List your documents](/docs/api/endpoints/documents-list)            |
+| `POST`   | `/api/documents`      | [Create a document](/docs/api/endpoints/documents-create)            |
+| `GET`    | `/api/documents/{id}` | [Get a document](/docs/api/endpoints/documents-get)                  |
+| `PUT`    | `/api/documents/{id}` | [Replace a document's source](/docs/api/endpoints/documents-replace) |
+| `PATCH`  | `/api/documents/{id}` | [Update selected fields](/docs/api/endpoints/documents-update)       |
+| `DELETE` | `/api/documents/{id}` | [Delete a document](/docs/api/endpoints/documents-remove)            |
+
+[Document behavior](/docs/api/documents) covers defaults, versions, and partial updates.
+
+## Comments
+
+| Method   | Path                                   | Operation                                                           |
+| -------- | -------------------------------------- | ------------------------------------------------------------------- |
+| `GET`    | `/api/documents/{documentId}/comments` | [List comments](/docs/api/endpoints/comments-list)                  |
+| `POST`   | `/api/documents/{documentId}/comments` | [Create a comment](/docs/api/endpoints/comments-create)             |
+| `PATCH`  | `/api/comments/{id}`                   | [Resolve or reopen a comment](/docs/api/endpoints/comments-resolve) |
+| `DELETE` | `/api/comments/{id}`                   | [Delete a comment](/docs/api/endpoints/comments-remove)             |
+
+[Comment behavior](/docs/api/comments) covers anchors and permissions.
+
+## System
+
+| Method | Path          | Operation                                                                      |
+| ------ | ------------- | ------------------------------------------------------------------------------ |
+| `GET`  | `/api/health` | [Health check](/docs/api/endpoints/health), returns 204 without authentication |
+| `GET`  | `/api/me`     | [Current user](/docs/api/endpoints/me), requires authentication                |
+
+Google sign-in, device authorization, and API-key management use Better Auth routes under `/auth`. They are separate from this generated API contract. The web app and `folio login` handle these flows.

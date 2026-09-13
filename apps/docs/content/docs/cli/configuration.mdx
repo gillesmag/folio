@@ -1,0 +1,45 @@
+---
+title: CLI configuration
+description: Server selection, environment variables, credential storage, and configuration file locations.
+---
+
+## Server selection
+
+The CLI uses the first available server value:
+
+1. `--server`.
+2. `FOLIO_SERVER`.
+3. `server` in the configuration file.
+
+A successful `folio login --server ...` saves the server for future commands. There is no built-in default server. Trailing slashes are removed.
+
+The configuration file is `folio/config.toml` inside the operating system's configuration directory. Its contents use this shape:
+
+```toml
+server = "https://folio.example.com"
+```
+
+## Configuration locations
+
+| Platform | Typical file path                                                                 |
+| -------- | --------------------------------------------------------------------------------- |
+| Linux    | `$XDG_CONFIG_HOME/folio/config.toml`, or `~/.config/folio/config.toml` when unset |
+| macOS    | `~/Library/Application Support/folio/config.toml`                                 |
+| Windows  | `%APPDATA%\folio\config.toml`                                                     |
+
+## Credential selection
+
+The CLI uses the first available credential:
+
+1. `FOLIO_API_KEY`, sent as `x-api-key`.
+2. `FOLIO_TOKEN`, sent as an `Authorization: Bearer` session token.
+3. The operating system keychain entry for the server.
+4. The fallback credential file for the server.
+
+An environment variable that is present but empty still overrides stored credentials.
+
+The keychain service is `folio`. The account name is the server URL without its HTTP or HTTPS scheme.
+
+If the keychain is unavailable, login saves the token under `folio/credentials/` in the configuration directory. The filename replaces characters other than ASCII letters, digits, dots, and hyphens with underscores. On Unix, the file permissions are `0600`.
+
+Environment credentials apply to whichever server the command selects. Stored credentials are selected per server.

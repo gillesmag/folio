@@ -1,0 +1,72 @@
+---
+title: Write and update documents
+description: Create documents in the browser, publish files from the terminal, and retrieve Markdown source.
+---
+
+## Create a document in the browser
+
+1. Sign in to your Folio instance with Google.
+2. Open `/new` on that instance.
+3. Enter Markdown in the editor.
+4. Choose a visibility.
+5. Select **Create**.
+
+To edit a document you own, open its page and select **Edit**. Save the changes to update the same URL.
+
+## Push a local file
+
+```sh
+folio push notes.md --title "Project notes"
+```
+
+If you omit `--title`, Folio uses the frontmatter title, then the first level-one heading, then `Untitled`.
+
+To replace a document, pass its ID:
+
+```sh
+folio push notes.md --id DOCUMENT_ID
+```
+
+Replacement recalculates the title from the new source when `--title` is absent. It preserves the existing visibility unless you pass `--visibility`.
+
+## Publish generated Markdown
+
+Pass `-` as the filename to read standard input:
+
+```sh
+printf '# Build report\n\nAll checks passed.\n' | folio push - --title "Build report"
+```
+
+For automation, [use an API key](/docs/guides/agents).
+
+## Find and retrieve documents
+
+List the documents you own:
+
+```sh
+folio list
+```
+
+Open a document in your browser:
+
+```sh
+folio open DOCUMENT_ID
+```
+
+Save its original Markdown source to a file:
+
+```sh
+folio pull DOCUMENT_ID --output notes.md
+```
+
+`--output` overwrites an existing file at that path. Without it, `pull` prints the source to standard output. Public and unlisted documents can be pulled without signing in.
+
+## Delete a document
+
+To delete a document you own, run:
+
+```sh
+folio rm DOCUMENT_ID
+```
+
+This command deletes the document, its stored versions, and its comments without a confirmation prompt. Pull a local copy first if you need the source.

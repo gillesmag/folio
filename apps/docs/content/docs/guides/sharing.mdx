@@ -1,0 +1,47 @@
+---
+title: Share documents and collect feedback
+description: Choose who can read a document and use comments to review its content.
+---
+
+## Share a document
+
+To let anyone with the link read your document, publish it as unlisted:
+
+```sh
+folio push notes.md --id DOCUMENT_ID --visibility unlisted
+```
+
+Share the URL printed by the CLI. Recipients can read it without signing in. Treat an unlisted URL as shareable access to the document.
+
+To restrict access to your account, change the visibility to private in the web editor. You can also republish your local source:
+
+```sh
+folio push notes.md --id DOCUMENT_ID --visibility private
+```
+
+Anonymous browser views can remain cached for up to one minute after a visibility change.
+
+Public and unlisted documents have the same read access in the current implementation. Folio does not provide a public discovery feed. See the [API access rules](/docs/api/authentication) for details.
+
+## Comment on a block
+
+1. Sign in to the instance that hosts the document.
+2. Open a document you can read.
+3. Select a block in the document.
+4. Enter your comment and submit it.
+
+To comment on the whole document, clear the selected block before submitting. The comment author and document owner can resolve or delete a comment.
+
+## Read feedback from the terminal
+
+```sh
+folio comments DOCUMENT_ID
+```
+
+To process comments in a script, request JSON:
+
+```sh
+folio comments DOCUMENT_ID --json
+```
+
+The CLI lists comments. To create, resolve, or delete comments from a script, use the [API](/docs/api).

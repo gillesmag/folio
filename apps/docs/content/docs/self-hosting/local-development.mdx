@@ -1,0 +1,77 @@
+---
+title: Run Folio locally
+description: Start the API, web app, and documentation site from a repository checkout.
+---
+
+## Install dependencies
+
+Use the repository's Node and pnpm versions, then run:
+
+```sh
+pnpm install --frozen-lockfile
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+```
+
+Set `BETTER_AUTH_SECRET` to at least 32 random characters in `.dev.vars`. Fill in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+For local Google sign-in, register the origin `http://localhost:5173` and redirect URI `http://localhost:5173/auth/callback/google`.
+
+## Start the API
+
+Apply migrations to local D1 storage:
+
+```sh
+pnpm --filter @folio/api db:migrate:local
+```
+
+Start the Worker in its own terminal:
+
+```sh
+pnpm --filter @folio/api dev
+```
+
+The API listens at `http://localhost:8787`. Wrangler provides local D1 and R2 storage.
+
+## Start the web app
+
+In another terminal, run:
+
+```sh
+API_URL=http://localhost:8787 pnpm --filter @folio/web dev
+```
+
+Open `http://localhost:5173`. For local CLI usage, select the web origin:
+
+```sh
+cargo run --locked -p folio -- login --server http://localhost:5173
+```
+
+## Start the docs site
+
+```sh
+pnpm --filter @folio/docs dev
+```
+
+Open `http://localhost:3000`. Edit the MDX pages under `apps/docs/content/docs`.
+
+API reference pages regenerate when the docs app starts or builds. After changing `packages/contract` during a docs session, run:
+
+```sh
+pnpm --filter @folio/docs generate
+```
+
+After changing CLI arguments, regenerate the committed command reference with a Rust toolchain installed:
+
+```sh
+pnpm --filter @folio/docs generate:cli
+```
+
+## Check and preview the docs build
+
+```sh
+pnpm --filter @folio/docs check
+pnpm --filter @folio/docs build
+pnpm --filter @folio/docs preview
+```
+
+The preview serves the built static assets through Wrangler on port 3000. Stop the docs development server first if it uses that port.

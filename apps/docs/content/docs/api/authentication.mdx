@@ -1,0 +1,56 @@
+---
+title: Authentication and errors
+description: Accepted credentials, document access rules, rate limits, and domain errors.
+---
+
+## Credentials
+
+The API accepts a browser session cookie, a bearer session token, or an API key.
+
+| Credential                      | Header                                     |
+| ------------------------------- | ------------------------------------------ |
+| API key from `/settings/keys`   | `x-api-key: YOUR_API_KEY`                  |
+| Session token from device login | `Authorization: Bearer YOUR_SESSION_TOKEN` |
+| Browser session                 | Session cookie, sent by the web app        |
+
+The CLI obtains a session token with `folio login`. An API key acts as the account that created it. The current key configuration does not limit a key to selected documents.
+
+## Access rules
+
+| Operation                                          | Access                                       |
+| -------------------------------------------------- | -------------------------------------------- |
+| Health check                                       | Anyone                                       |
+| Current user, list own documents, create document  | Signed-in account or API key                 |
+| Read a private document or its comments            | Document owner                               |
+| Read a public or unlisted document or its comments | Anyone with the ID                           |
+| Replace, update, or delete a document              | Document owner                               |
+| Create a comment                                   | Signed-in account that can read the document |
+| Resolve, reopen, or delete a comment               | Comment author or document owner             |
+
+Private document reads return 404 for non-owners, including anonymous callers. Listing documents returns only the caller's documents. Public visibility does not add a document to another user's list.
+
+## Domain errors
+
+Domain errors have a JSON body with a `_tag` field:
+
+```json
+{
+	"_tag": "DocumentNotFound",
+	"id": "DOCUMENT_ID"
+}
+```
+
+| HTTP status | Tag                | Additional field |
+| ----------- | ------------------ | ---------------- |
+| 401         | `Unauthorized`     | `message`        |
+| 403         | `Forbidden`        | `message`        |
+| 404         | `DocumentNotFound` | `id`             |
+| 404         | `CommentNotFound`  | `id`             |
+
+Invalid payloads are rejected by schema validation. Transport, validation, and authentication-library errors may use a different body shape. Clients must check the HTTP status before assuming a domain-error format.
+
+## Rate limits
+
+Better Auth limits authentication routes to 60 requests per IP per 60 seconds. API keys are limited to 300 requests per 60 seconds per key.
+
+The device flow accepts the `folio-cli` client ID. Device codes expire after 10 minutes. The CLI respects the polling interval and increases the delay after `slow_down` responses.

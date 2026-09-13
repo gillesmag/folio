@@ -1,0 +1,61 @@
+---
+title: Use Folio with agents
+description: Give a script or agent an API key and use JSON output to keep track of documents.
+---
+
+## Create an API key
+
+1. Sign in to your Folio instance.
+2. Open `/settings/keys`.
+3. Name the key for your script or agent.
+4. Select **Create key**.
+5. Copy the key when it appears. Folio shows it only once.
+
+The key acts as your account. It can access your private documents and modify your documents. To withdraw access, select **Revoke** next to that key.
+
+## Configure the agent's environment
+
+Set the instance's web origin and the API key in the agent's environment or secret store:
+
+```sh
+export FOLIO_SERVER=https://folio.example.com
+export FOLIO_API_KEY=YOUR_API_KEY
+folio whoami --json
+```
+
+Keep the key out of source files and committed configuration. The CLI checks `FOLIO_API_KEY` before `FOLIO_TOKEN` and stored credentials.
+
+## Keep a document at the same URL
+
+Create a document and capture its ID with `jq`:
+
+```sh
+folio push report.md --json > published.json
+DOC_ID=$(jq -r '.id' published.json)
+```
+
+Use that ID for later updates:
+
+```sh
+folio push report.md --id "$DOC_ID" --json
+folio comments "$DOC_ID" --json
+```
+
+Choose `--visibility unlisted` explicitly if readers need access without your account. New documents are private by default.
+
+## Use HTTP directly
+
+```sh
+curl "$FOLIO_SERVER/api/documents" \
+	-H "x-api-key: $FOLIO_API_KEY" \
+	-H 'Content-Type: application/json' \
+	--data '{"source":"# Agent report\n\nTask complete.","visibility":"private"}'
+```
+
+The response contains the document ID, source, rendered HTML, metadata, and version. See the [API reference](/docs/api).
+
+## Give the agent documentation
+
+Point the agent at this site's [llms.txt](/llms.txt) to find individual Markdown pages, or [llms-full.txt](/llms-full.txt) for the complete reference.
+
+The repository also includes `skills/cli/SKILL.md`, which describes the CLI workflow for agent tools that load skills.

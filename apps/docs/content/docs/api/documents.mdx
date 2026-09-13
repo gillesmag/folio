@@ -1,0 +1,44 @@
+---
+title: Document behavior
+description: Creation defaults, replacement and patch semantics, versions, and list ordering.
+---
+
+## Create
+
+`POST /api/documents` requires `source`. `title` and `visibility` are optional. New documents default to `private` visibility and version `1`.
+
+A successful creation returns status 201 and the complete document, including `source`, `html`, and `meta`.
+
+## Replace
+
+`PUT /api/documents/{id}` requires `source` and replaces the document content. It preserves visibility when `visibility` is absent.
+
+When `title` is absent or blank, the server derives a title from the new source. It does not preserve a previous explicit title automatically.
+
+## Patch
+
+`PATCH /api/documents/{id}` accepts any subset of `title`, `source`, and `visibility`.
+
+If `source` is present, Folio renders it and derives the title unless a nonblank explicit title is present. Without `source`, it keeps the existing content. A nonblank `title` updates the title. A blank title without source leaves the existing title unchanged.
+
+For example, this payload changes visibility without replacing the source:
+
+```json
+{
+	"visibility": "unlisted"
+}
+```
+
+## Versions and deletion
+
+Every successful replacement or patch increments the version, including an empty patch. The API returns the current version. It does not expose a version-history or restore endpoint.
+
+Deletion removes the document index, its comments, and its stored content versions. It returns 204 with no body.
+
+## Lists and full documents
+
+`GET /api/documents` returns all documents owned by the caller, sorted by `updatedAt` descending. It has no pagination parameters. Each summary omits `source`, `html`, and `meta`.
+
+`GET /api/documents/{id}` returns the complete document. `meta` includes the table of contents, frontmatter, math and Mermaid flags, and block count.
+
+See the [generated endpoint schemas](/docs/api) for exact field types.

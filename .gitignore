@@ -12,3 +12,13 @@ target
 # Xcode
 xcuserdata/
 *.xcuserstate
+
+# Documentation site
+apps/docs/.next/
+apps/docs/.source/
+apps/docs/out/
+apps/docs/next-env.d.ts
+*.tsbuildinfo
+apps/docs/content/docs/api/endpoints/
+apps/docs/public/openapi.json
+apps/docs/generated/

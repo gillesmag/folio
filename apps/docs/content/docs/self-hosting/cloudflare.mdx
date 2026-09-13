@@ -1,0 +1,183 @@
+---
+title: Self-host Folio on Cloudflare
+description: Deploy the API, web app, and documentation with Workers, D1, R2, and Google sign-in.
+---
+
+This guide deploys your own Folio instance and its documentation website. You need repository access, a Cloudflare account with Workers, D1, and R2 enabled, and a Google Cloud project for OAuth.
+
+Install the Node version in `.node-version` and the pnpm version in the root `package.json`. The docs website uses a committed CLI reference, so Cloudflare builds do not need Rust.
+
+## Get the source
+
+```sh
+git clone git@github.com:gillesmag/folio.git
+cd folio
+pnpm install --frozen-lockfile
+pnpm --filter @folio/api exec wrangler login
+```
+
+The remaining commands run from the repository root.
+
+## Create the database and bucket
+
+```sh
+pnpm --filter @folio/api exec wrangler d1 create folio
+pnpm --filter @folio/api exec wrangler r2 bucket create folio-docs
+```
+
+Copy the database ID printed by Wrangler into `apps/api/wrangler.jsonc`, replacing `REPLACE_WITH_D1_ID`.
+
+Keep the configured bindings:
+
+| Binding | Resource                          | Contents                                                                        |
+| ------- | --------------------------------- | ------------------------------------------------------------------------------- |
+| `DB`    | D1 database `folio`               | Accounts, sessions, API keys, document index, comments, and rate-limit counters |
+| `DOCS`  | R2 bucket `folio-docs`            | Markdown source, rendered HTML, and metadata for each document version          |
+| `API`   | Service binding in the web Worker | Requests to the `folio-api` Worker                                              |
+
+If you change resource names, update the corresponding Wrangler files. The API also uses Cloudflare's Cache API, which needs no separately provisioned resource.
+
+## Configure Google sign-in
+
+Create an OAuth client of type **Web application** in Google Cloud. Configure the consent screen and add your account as a test user if the app is in testing.
+
+Choose your public web origin, such as `https://folio.example.com`. Add these OAuth settings:
+
+| Setting                      | Value                                            |
+| ---------------------------- | ------------------------------------------------ |
+| Authorized JavaScript origin | `https://folio.example.com`                      |
+| Authorized redirect URI      | `https://folio.example.com/auth/callback/google` |
+
+Set `APP_URL` in `apps/api/wrangler.jsonc` to the same web origin. Use the exact HTTPS origin without a trailing slash. `APP_URL` controls OAuth callbacks, trusted origins, and cookie settings.
+
+## Configure the web domain
+
+For a domain managed in your Cloudflare account, add this top-level property to `apps/web/wrangler.jsonc`:
+
+```jsonc
+"routes": [
+	{ "pattern": "folio.example.com", "custom_domain": true }
+]
+```
+
+Keep the service binding to `folio-api`. The API Worker has `workers_dev: false` and `preview_urls: false`. Clients reach it through the web app at `/api/*` and `/auth/*`.
+
+You can start with a `workers.dev` origin instead. After the web deployment prints its URL, update `APP_URL` and both Google OAuth values to that origin, then redeploy the API.
+
+See Cloudflare's [custom domain configuration](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) for domain requirements.
+
+## Deploy the API and set secrets
+
+Deploy the API first. Its deploy script applies pending D1 migrations before uploading the Worker:
+
+```sh
+pnpm --filter @folio/api deploy
+```
+
+Set the authentication secrets on that Worker:
+
+```sh
+openssl rand -base64 32 | pnpm --filter @folio/api exec wrangler secret put BETTER_AUTH_SECRET
+pnpm --filter @folio/api exec wrangler secret put GOOGLE_CLIENT_ID
+pnpm --filter @folio/api exec wrangler secret put GOOGLE_CLIENT_SECRET
+```
+
+Enter the OAuth client ID and secret at Wrangler's prompts. Keep these values out of `wrangler.jsonc`. The API rejects authentication initialization if `BETTER_AUTH_SECRET` is missing or shorter than 32 characters.
+
+## Deploy the web app
+
+```sh
+pnpm --filter @folio/web deploy
+```
+
+Open the configured web domain. Sign in with Google. If you used the generated `workers.dev` URL, finish the `APP_URL` and OAuth updates described above before testing sign-in.
+
+## Deploy the documentation website
+
+The docs app builds Fumadocs and Next.js into static files in `apps/docs/out`. Wrangler publishes those files as the `folio-documentation` Worker. It needs no database, service binding, or authentication secrets.
+
+```sh
+pnpm --filter @folio/docs deploy
+```
+
+To give it a custom domain, add this top-level property to `apps/docs/wrangler.jsonc` and deploy again:
+
+```jsonc
+"routes": [
+	{ "pattern": "docs.folio.example.com", "custom_domain": true }
+]
+```
+
+The docs site includes search, `/llms.txt`, `/llms-full.txt`, `/openapi.json`, and individual Markdown pages. Search runs in the browser against a generated index.
+
+This app uses [Fumadocs static export](https://www.fumadocs.dev/docs/deploying/static) and [Workers static assets](https://developers.cloudflare.com/workers/static-assets/). No Next.js runtime is needed on the Worker.
+
+## Verify the deployment
+
+Check the API through the web origin:
+
+```sh
+curl -i https://folio.example.com/api/health
+```
+
+The response is `204 No Content`.
+
+Check authentication and document creation with an [installed CLI](/docs/installation):
+
+```sh
+folio login --server https://folio.example.com
+folio whoami
+printf '# Deployment check\n\nFolio is running.\n' | folio push -
+```
+
+Open the returned URL while signed in. Check that the docs site serves plain text:
+
+```sh
+curl --fail https://docs.folio.example.com/llms.txt
+```
+
+## Enable deployments from GitHub
+
+After the first manual deployment, connect each Worker to your repository in **Settings → Build**. Use these settings for the production branch:
+
+| Worker                | Root directory  | Build command                     | Deploy command                                   |
+| --------------------- | --------------- | --------------------------------- | ------------------------------------------------ |
+| `folio-api`           | Repository root | Leave empty                       | `pnpm --filter @folio/api deploy`                |
+| `folio-web`           | Repository root | `pnpm --filter @folio/web build`  | `pnpm --filter @folio/web exec wrangler deploy`  |
+| `folio-documentation` | Repository root | `pnpm --filter @folio/docs build` | `pnpm --filter @folio/docs exec wrangler deploy` |
+
+Set the install command to `pnpm install --frozen-lockfile`. Include the relevant app, `packages/**`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `package.json`, and `.node-version` in each Worker's build watch paths. Docs builds need `apps/docs/**` and `packages/contract/**`.
+
+Worker secrets persist across deployments. They do not belong in build environment variables. Keep automatic API deployments on the production branch because the deploy script applies remote migrations. Web previews cannot sign in unless their origin matches the configured authentication origin.
+
+See [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) for repository and branch settings.
+
+## Maintain the instance
+
+Before an upgrade, back up both D1 and R2. D1 holds the index and account data. R2 holds the document content, so a database-only backup cannot restore a complete instance.
+
+To export D1:
+
+```sh
+pnpm --filter @folio/api exec wrangler d1 export folio --remote --output folio-backup.sql
+```
+
+Use an R2-compatible backup tool or the S3 API to copy the bucket's objects to separate storage. Restrict access to backups because they contain private documents and authentication data.
+
+To update, pull the intended revision, install the locked dependencies, and deploy the API before the web app. Deploy the docs site when its content or API contract changes.
+
+## Troubleshoot sign-in and requests
+
+If Google reports a redirect mismatch, compare the registered redirect URI with `APP_URL` plus `/auth/callback/google`.
+
+If authentication fails after a domain change, update `APP_URL`, the OAuth origin, and the OAuth redirect URI. Redeploy the API and sign in again.
+
+For a server error, stream API logs while repeating the request:
+
+```sh
+pnpm --filter @folio/api exec wrangler tail
+```
+
+Check the `DB` and `DOCS` bindings, applied migrations, and secret names. Keep the web Worker's `API` service binding pointed at the deployed API Worker.
+
+If anonymous traffic needs additional limits, configure rate-limiting rules on the web domain. The built-in limits cover authentication routes and API keys.

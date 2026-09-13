@@ -1,0 +1,59 @@
+---
+title: Publish your first document
+description: Push a Markdown file, open it in the browser, and publish an update at the same URL.
+---
+
+We'll publish a short document on a Folio instance. You need the [Folio CLI](/docs/installation) and your instance's web address. If you do not have an instance, [deploy one on Cloudflare](/docs/self-hosting/cloudflare).
+
+## Sign in
+
+Run this command with your instance's web address:
+
+```sh
+folio login --server https://folio.example.com
+```
+
+The CLI prints a code and opens a browser. Sign in with Google, check that the code matches, and approve the request. The terminal prints your name and email.
+
+## Create a document
+
+Save this text as `hello.md`:
+
+```md
+# Hello from Folio
+
+This document started as a local Markdown file.
+
+- [x] Write a first draft
+- [ ] Collect feedback
+```
+
+Push the file:
+
+```sh
+folio push hello.md
+```
+
+The CLI prints a URL such as `https://folio.example.com/d/DOCUMENT_ID`. Open it in the browser while signed in. The page shows the heading and task list. The document is private.
+
+## Publish an update
+
+Add another paragraph to `hello.md`. Replace `DOCUMENT_ID` with the ID from the URL, then run:
+
+```sh
+folio push hello.md --id DOCUMENT_ID
+```
+
+Refresh the page. It shows the new paragraph at the same URL. Each update increments the document's version.
+
+## Share a link
+
+Make the document readable by anyone with its URL:
+
+```sh
+folio push hello.md --id DOCUMENT_ID --visibility unlisted
+```
+
+Open the link in a signed-out browser to check access. Signed-in readers can add comments.
+
+Continue with [document workflows](/docs/guides/documents) and [sharing and comments](/docs/guides/sharing).

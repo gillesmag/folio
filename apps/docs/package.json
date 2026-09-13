@@ -1,0 +1,39 @@
+{
+	"name": "@folio/docs",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "pnpm generate && next dev --port 3000",
+		"build": "pnpm generate && next build",
+		"check": "pnpm generate && fumadocs-mdx && next typegen && tsc --noEmit",
+		"generate": "tsx scripts/generate-api.ts",
+		"preview": "wrangler dev --port 3000",
+		"deploy": "pnpm build && wrangler deploy",
+		"generate:cli": "node scripts/generate-cli.mjs"
+	},
+	"dependencies": {
+		"@folio/contract": "workspace:*",
+		"effect": "4.0.0-rc.115",
+		"fumadocs-core": "^16.15.10",
+		"fumadocs-mdx": "^15.4.0",
+		"fumadocs-openapi": "^11.4.2",
+		"fumadocs-ui": "^16.15.10",
+		"lucide-react": "^0.577.0",
+		"next": "^16.3.5",
+		"react": "^19.3.0",
+		"react-dom": "^19.3.0",
+		"shiki": "^4.0.2"
+	},
+	"devDependencies": {
+		"@tailwindcss/postcss": "^4.3.0",
+		"@types/mdx": "^2.0.13",
+		"@types/node": "^25.0.0",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
+		"tailwindcss": "^4.3.0",
+		"tsx": "^4.21.0",
+		"typescript": "^5.9.2",
+		"wrangler": "^4.131.1"
+	}
+}

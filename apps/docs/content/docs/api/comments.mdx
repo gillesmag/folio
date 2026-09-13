@@ -1,0 +1,39 @@
+---
+title: Comment behavior
+description: Comment anchors, creation defaults, ordering, and resolution permissions.
+---
+
+## Create a comment
+
+`POST /api/documents/{documentId}/comments` requires a nonempty `body`. `blockId` is optional and nullable. An absent or null block ID refers to the whole document.
+
+```json
+{
+	"body": "Can you expand the deployment section?",
+	"blockId": null
+}
+```
+
+A new comment has `resolved: false`. The server sets its ID, author, and timestamps. A successful creation returns status 201.
+
+A block comment refers to a `data-block-id` from the document's rendered HTML. The API limits the length of `blockId` but does not validate that the block exists.
+
+## List comments
+
+`GET /api/documents/{documentId}/comments` returns all comments in ascending `createdAt` order. The response includes resolved comments. It has no pagination or filtering parameters.
+
+## Resolve or reopen
+
+`PATCH /api/comments/{id}` requires a boolean `resolved` field:
+
+```json
+{
+	"resolved": true
+}
+```
+
+`false` reopens the comment. Only the comment author or document owner can change its resolved state. This endpoint does not edit the comment body.
+
+## Delete
+
+`DELETE /api/comments/{id}` allows the comment author or document owner to delete the comment. It returns 204 with no body.
