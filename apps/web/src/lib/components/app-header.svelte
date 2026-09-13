@@ -1,12 +1,23 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { toggleMode } from 'mode-watcher';
+	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
 	import MoonIcon from '@lucide/svelte/icons/moon';
 	import SunIcon from '@lucide/svelte/icons/sun';
+	import { commentMode } from '$lib/comment-mode.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Kbd } from '$lib/components/ui/kbd';
 
 	let { user, onOpenPalette }: { user: App.SessionUser | null; onOpenPalette: () => void } =
 		$props();
+
+	// The document page loads its comments; the header only counts the open ones for the toggle.
+	const onDocument = $derived(page.route.id === '/d/[id]');
+	const openComments = $derived(
+		onDocument
+			? ((page.data.comments ?? []) as { resolved: boolean }[]).filter((c) => !c.resolved).length
+			: 0
+	);
 </script>
 
 <header class="border-b">
@@ -17,6 +28,21 @@
 			<span class="hidden sm:inline">Search or jump to…</span>
 			<Kbd>⌘K</Kbd>
 		</Button>
+		{#if onDocument}
+			<Button
+				variant={commentMode.open ? 'secondary' : 'ghost'}
+				size="sm"
+				aria-pressed={commentMode.open}
+				aria-label="Toggle comments"
+				onclick={() => (commentMode.open = !commentMode.open)}
+			>
+				<MessageSquareIcon />
+				<span class="hidden sm:inline">Comments</span>
+				{#if openComments > 0}
+					<span class="text-muted-foreground tabular-nums">{openComments}</span>
+				{/if}
+			</Button>
+		{/if}
 		<!-- Both icons are in the markup and CSS picks one, so SSR and hydration agree without knowing the mode. -->
 		<Button variant="ghost" size="icon-sm" onclick={toggleMode} aria-label="Toggle dark mode">
 			<SunIcon class="dark:hidden" />

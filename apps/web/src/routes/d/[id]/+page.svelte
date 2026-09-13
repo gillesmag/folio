@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { mode } from 'mode-watcher';
+	import { commentMode } from '$lib/comment-mode.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -14,6 +15,26 @@
 	let anchor = $state<string | null>(null);
 	let article = $state<HTMLElement | null>(null);
 	let activeHeading = $state<string | null>(null);
+	let commentsSection = $state<HTMLElement | null>(null);
+
+	// Every document opens with comments hidden, including when moving from one document to another.
+	$effect(() => {
+		void doc.id;
+		commentMode.open = false;
+		return () => {
+			commentMode.open = false;
+		};
+	});
+	// Leaving comment mode drops the block selection so nothing stays highlighted.
+	$effect(() => {
+		if (!commentMode.open) anchor = null;
+	});
+	// Below the lg breakpoint the comments sit under the article, so bring them into view when switched on.
+	$effect(() => {
+		if (commentsSection && !window.matchMedia('(min-width: 64rem)').matches) {
+			commentsSection.scrollIntoView({ block: 'start', behavior: 'smooth' });
+		}
+	});
 
 	// The document usually opens with the same h1 as its title; do not print it twice.
 	const first = $derived(doc.meta.toc[0]);
@@ -28,7 +49,7 @@
 
 	// Clicking a block targets the comment form at it. Plain event delegation, no per-block handlers.
 	const onArticleClick = (e: MouseEvent) => {
-		if (!canComment) return;
+		if (!commentMode.open || !canComment) return;
 		const target = e.target as HTMLElement;
 		if (target.closest('a, input, button, summary')) return;
 		const block = target.closest<HTMLElement>('[data-block-id]');
@@ -44,13 +65,13 @@
 	);
 
 	// Selected block highlight and per-block open-comment counts live on the DOM,
-	// since the HTML itself comes from the server as one string.
+	// since the HTML itself comes from the server as one string. Both only show in comment mode.
 	$effect(() => {
 		if (!article) return;
 		for (const el of article.querySelectorAll<HTMLElement>('[data-block-id]')) {
 			const id = el.dataset.blockId ?? '';
 			el.classList.toggle('selected', id === anchor);
-			const n = commentsByBlock[id];
+			const n = commentMode.open ? commentsByBlock[id] : undefined;
 			if (n) el.dataset.comments = String(n);
 			else delete el.dataset.comments;
 		}
@@ -223,7 +244,7 @@
 		<article
 			bind:this={article}
 			class="folio-doc"
-			class:can-comment={canComment}
+			class:can-comment={commentMode.open && canComment}
 			onclick={onArticleClick}
 		>
 			{@html doc.html}
@@ -244,73 +265,75 @@
 			</div>
 		{/if}
 
-		<section class="text-sm">
-			<div
-				class="text-muted-foreground mb-2 text-[0.6875rem] font-semibold tracking-wider uppercase"
-			>
-				Comments · {data.comments.length}
-			</div>
-			{#if canComment}
-				<form method="post" action="?/comment" use:enhance class="mb-4 flex flex-col gap-2">
-					<input type="hidden" name="blockId" value={anchor ?? ''} />
-					<Textarea
-						name="body"
-						rows={3}
-						placeholder={anchor ? 'Comment on the selected block…' : 'Comment on the document…'}
-					/>
-					<div class="flex items-center gap-2">
-						{#if anchor}
-							<span class="text-muted-foreground text-xs">
-								On a block ·
-								<button type="button" class="underline" onclick={() => (anchor = null)}
-									>clear</button
-								>
-							</span>
-						{:else}
-							<span class="text-muted-foreground text-xs">Click a paragraph to target it</span>
-						{/if}
-						<Button type="submit" size="sm" class="ml-auto">Post</Button>
-					</div>
-					{#if form?.message}<p class="text-destructive text-xs">{form.message}</p>{/if}
-				</form>
-			{:else}
-				<p class="text-muted-foreground mb-4 text-xs">
-					<a href="/login?next=/d/{doc.id}" class="underline">Sign in</a> to comment.
-				</p>
-			{/if}
-			<ul class="space-y-2">
-				{#each data.comments as c (c.id)}
-					<li class="rounded-md border p-2.5" class:opacity-60={c.resolved}>
-						{#if c.blockId}
-							<button
-								type="button"
-								class="text-muted-foreground mb-1 block text-xs underline decoration-dotted underline-offset-2"
-								onclick={() => jumpTo(c.blockId!)}
-							>
-								Jump to block
-							</button>
-						{/if}
-						<p class="leading-relaxed whitespace-pre-wrap">{c.body}</p>
-						<div class="text-muted-foreground mt-1.5 flex items-center gap-2 text-xs">
-							<span
-								>{new Date(String(c.createdAt)).toLocaleString(undefined, {
-									dateStyle: 'medium',
-									timeStyle: 'short'
-								})}</span
-							>
-							{#if data.user && (data.user.id === c.authorId || isOwner)}
-								<form method="post" action="?/resolve" use:enhance class="ml-auto">
-									<input type="hidden" name="id" value={c.id} />
-									<input type="hidden" name="resolved" value={String(!c.resolved)} />
-									<button class="underline">{c.resolved ? 'Reopen' : 'Resolve'}</button>
-								</form>
+		{#if commentMode.open}
+			<section bind:this={commentsSection} class="scroll-mt-6 text-sm">
+				<div
+					class="text-muted-foreground mb-2 text-[0.6875rem] font-semibold tracking-wider uppercase"
+				>
+					Comments · {data.comments.length}
+				</div>
+				{#if canComment}
+					<form method="post" action="?/comment" use:enhance class="mb-4 flex flex-col gap-2">
+						<input type="hidden" name="blockId" value={anchor ?? ''} />
+						<Textarea
+							name="body"
+							rows={3}
+							placeholder={anchor ? 'Comment on the selected block…' : 'Comment on the document…'}
+						/>
+						<div class="flex items-center gap-2">
+							{#if anchor}
+								<span class="text-muted-foreground text-xs">
+									On a block ·
+									<button type="button" class="underline" onclick={() => (anchor = null)}
+										>clear</button
+									>
+								</span>
+							{:else}
+								<span class="text-muted-foreground text-xs">Click a paragraph to target it</span>
 							{/if}
+							<Button type="submit" size="sm" class="ml-auto">Post</Button>
 						</div>
-					</li>
+						{#if form?.message}<p class="text-destructive text-xs">{form.message}</p>{/if}
+					</form>
 				{:else}
-					<li class="text-muted-foreground text-xs">No comments yet.</li>
-				{/each}
-			</ul>
-		</section>
+					<p class="text-muted-foreground mb-4 text-xs">
+						<a href="/login?next=/d/{doc.id}" class="underline">Sign in</a> to comment.
+					</p>
+				{/if}
+				<ul class="space-y-2">
+					{#each data.comments as c (c.id)}
+						<li class="rounded-md border p-2.5" class:opacity-60={c.resolved}>
+							{#if c.blockId}
+								<button
+									type="button"
+									class="text-muted-foreground mb-1 block text-xs underline decoration-dotted underline-offset-2"
+									onclick={() => jumpTo(c.blockId!)}
+								>
+									Jump to block
+								</button>
+							{/if}
+							<p class="leading-relaxed whitespace-pre-wrap">{c.body}</p>
+							<div class="text-muted-foreground mt-1.5 flex items-center gap-2 text-xs">
+								<span
+									>{new Date(String(c.createdAt)).toLocaleString(undefined, {
+										dateStyle: 'medium',
+										timeStyle: 'short'
+									})}</span
+								>
+								{#if data.user && (data.user.id === c.authorId || isOwner)}
+									<form method="post" action="?/resolve" use:enhance class="ml-auto">
+										<input type="hidden" name="id" value={c.id} />
+										<input type="hidden" name="resolved" value={String(!c.resolved)} />
+										<button class="underline">{c.resolved ? 'Reopen' : 'Resolve'}</button>
+									</form>
+								{/if}
+							</div>
+						</li>
+					{:else}
+						<li class="text-muted-foreground text-xs">No comments yet.</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
 	</aside>
 </div>
