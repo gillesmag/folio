@@ -5,3 +5,6 @@ target
 pnpm-lock.yaml
 apps/api/src/worker-configuration.d.ts
 apps/web/src/lib/components/ui
+
+# Regenerate with dist generate.
+.github/workflows/release.yml

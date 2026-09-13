@@ -12,3 +12,6 @@ codegen-units = 1
 strip = true
 opt-level = "z"
 panic = "abort"
+
+[profile.dist]
+inherits = "release"

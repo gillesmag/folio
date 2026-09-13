@@ -30,6 +30,8 @@ Google OAuth redirect URI: `http://localhost:5173/auth/callback/google` (and the
 
 Checks: `pnpm check`, `pnpm test`, `cargo build --release`.
 
+CLI downloads and the tag-based release process are documented in [cli/README.md](cli/README.md).
+
 ## Deploy
 
 Everything runs from `apps/api` unless noted. Wrangler's login is shared by both apps.

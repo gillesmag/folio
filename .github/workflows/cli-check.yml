@@ -1,0 +1,48 @@
+name: CLI checks
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - 'cli/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'dist-workspace.toml'
+      - '.github/workflows/cli-check.yml'
+      - '.github/workflows/release.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'dist-workspace.toml'
+      - '.github/workflows/cli-check.yml'
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+      - name: Lint
+        run: cargo clippy --locked -p folio --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --locked -p folio
+      - name: Check CLI startup
+        run: |
+          cargo run --locked -p folio -- --version
+          cargo run --locked -p folio -- --help

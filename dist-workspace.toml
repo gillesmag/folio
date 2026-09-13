@@ -1,0 +1,22 @@
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.33.0"
+ci = ["github"]
+hosting = ["github"]
+packages = ["folio"]
+installers = ["shell", "powershell"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+]
+pr-run-mode = "plan"
+local-artifacts-jobs = ["./cli-check"]
+install-path = "CARGO_HOME"
+
+[dist.github-custom-runners]
+aarch64-apple-darwin = "macos-15"

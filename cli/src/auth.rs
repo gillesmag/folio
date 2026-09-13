@@ -42,10 +42,10 @@ pub fn load(config: &Config) -> Result<Option<Credential>> {
 
 fn store(config: &Config, token: &str) -> Result<()> {
     let account = config.credential_account();
-    if let Ok(entry) = keyring::Entry::new(SERVICE, &account) {
-        if entry.set_password(token).is_ok() {
-            return Ok(());
-        }
+    if let Ok(entry) = keyring::Entry::new(SERVICE, &account)
+        && entry.set_password(token).is_ok()
+    {
+        return Ok(());
     }
     let path = fallback_path(&account)?;
     if let Some(dir) = path.parent() {
