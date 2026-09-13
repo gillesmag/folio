@@ -71,7 +71,7 @@ See Cloudflare's [custom domain configuration](https://developers.cloudflare.com
 Deploy the API first. Its deploy script applies pending D1 migrations before uploading the Worker:
 
 ```sh
-pnpm --filter @folio/api deploy
+pnpm --filter @folio/api run deploy
 ```
 
 Set the authentication secrets on that Worker:
@@ -87,7 +87,7 @@ Enter the OAuth client ID and secret at Wrangler's prompts. Keep these values ou
 ## Deploy the web app
 
 ```sh
-pnpm --filter @folio/web deploy
+pnpm --filter @folio/web run deploy
 ```
 
 Open the configured web domain. Sign in with Google. If you used the generated `workers.dev` URL, finish the `APP_URL` and OAuth updates described above before testing sign-in.
@@ -97,7 +97,7 @@ Open the configured web domain. Sign in with Google. If you used the generated `
 The docs app builds Fumadocs and Next.js into static files in `apps/docs/out`. Wrangler publishes those files as the `folio-documentation` Worker. It needs no database, service binding, or authentication secrets.
 
 ```sh
-pnpm --filter @folio/docs deploy
+pnpm --filter @folio/docs run deploy
 ```
 
 To give it a custom domain, add this top-level property to `apps/docs/wrangler.jsonc` and deploy again:
@@ -142,7 +142,7 @@ After the first manual deployment, connect each Worker to your repository in **S
 
 | Worker                | Root directory  | Build command                     | Deploy command                                   |
 | --------------------- | --------------- | --------------------------------- | ------------------------------------------------ |
-| `folio-api`           | Repository root | Leave empty                       | `pnpm --filter @folio/api deploy`                |
+| `folio-api`           | Repository root | Leave empty                       | `pnpm --filter @folio/api run deploy`            |
 | `folio-web`           | Repository root | `pnpm --filter @folio/web build`  | `pnpm --filter @folio/web exec wrangler deploy`  |
 | `folio-documentation` | Repository root | `pnpm --filter @folio/docs build` | `pnpm --filter @folio/docs exec wrangler deploy` |
 

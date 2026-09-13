@@ -19,7 +19,7 @@ pnpm --filter @folio/docs build
 pnpm --filter @folio/docs preview
 ```
 
-`build` writes the website to `apps/docs/out`. `preview` serves it with Wrangler on port 3000. `pnpm --filter @folio/docs deploy` builds and publishes the `folio-documentation` Worker.
+`build` writes the website to `apps/docs/out`. `preview` serves it with Wrangler on port 3000. `pnpm --filter @folio/docs run deploy` builds and publishes the `folio-documentation` Worker.
 
 The site has browser-side search, `/llms.txt`, `/llms-full.txt`, `/openapi.json`, and a Markdown URL for every documentation page. The API playground is disabled because each reader has their own Folio origin. Their instance provides interactive API docs at `/api/docs`.
 
