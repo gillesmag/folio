@@ -287,12 +287,26 @@
 	font-weight: 600;
 	border-bottom: 2px solid var(--doc-border);
 	padding: 0.45em 0.75em;
-	white-space: nowrap;
 }
 .folio-doc td {
 	border-bottom: 1px solid var(--doc-border);
 	padding: 0.5em 0.75em;
 	vertical-align: top;
+}
+/* Cells wrap at word boundaries and only split a word as a last resort. The
+   document-wide `anywhere` would let the table algorithm treat every character
+   as a break point and squeeze label columns to a few words per line. Inline
+   code keeps `anywhere` so a long path cannot dictate the column width; the
+   floor on cell width keeps short tokens whole and makes a table with many
+   columns scroll rather than squash. */
+.folio-doc th,
+.folio-doc td {
+	overflow-wrap: break-word;
+	min-width: 6em;
+}
+.folio-doc th code,
+.folio-doc td code {
+	overflow-wrap: anywhere;
 }
 .folio-doc th:first-child,
 .folio-doc td:first-child {

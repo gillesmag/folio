@@ -5,6 +5,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import * as Dialog from '$lib/components/ui/dialog';
 	// Bundled with hashed URL and fonts, so math never depends on a third-party CDN.
 	import katexCss from 'katex/dist/katex.min.css?url';
 
@@ -16,6 +17,8 @@
 	let article = $state<HTMLElement | null>(null);
 	let activeHeading = $state<string | null>(null);
 	let commentsSection = $state<HTMLElement | null>(null);
+	// The diagram shown enlarged (its markup and width/height ratio), or null while the viewer is closed.
+	let enlarged = $state<{ html: string; ratio: number } | null>(null);
 
 	// Every document opens with comments hidden, including when moving from one document to another.
 	$effect(() => {
@@ -49,8 +52,22 @@
 
 	// Clicking a block targets the comment form at it. Plain event delegation, no per-block handlers.
 	const onArticleClick = (e: MouseEvent) => {
-		if (!commentMode.open || !canComment) return;
 		const target = e.target as HTMLElement;
+		const selecting = commentMode.open && canComment;
+		// A rendered diagram opens enlarged: always from its corner button, and on a
+		// plain click unless that click is selecting the block for a comment.
+		const diagram = target.closest<HTMLElement>('pre.mermaid');
+		if (diagram && (target.closest('.mermaid-expand') || !selecting)) {
+			const svg = diagram.querySelector('svg');
+			if (svg) {
+				const box = svg.viewBox.baseVal;
+				const rect = svg.getBoundingClientRect();
+				const ratio = box.width && box.height ? box.width / box.height : rect.width / rect.height;
+				enlarged = { html: svg.outerHTML, ratio };
+			}
+			return;
+		}
+		if (!selecting) return;
 		if (target.closest('a, input, button, summary')) return;
 		const block = target.closest<HTMLElement>('[data-block-id]');
 		if (!block) return;
@@ -99,6 +116,11 @@
 	// a failed block shows its source instead of vanishing. The diagram theme
 	// follows the colour mode, so a mode change renders every diagram again from
 	// the source kept on the node.
+	// Added to every rendered diagram; the article's click handler opens the viewer from it.
+	const expandButton =
+		'<button type="button" class="mermaid-expand" aria-label="Enlarge diagram" title="Enlarge">' +
+		'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+		'<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/></svg></button>';
 	let mermaidRun = 0;
 	$effect(() => {
 		if (!doc.meta.hasMermaid || !article) return;
@@ -139,7 +161,7 @@
 				const source = (node.dataset.source ??= node.textContent ?? '');
 				try {
 					const { svg } = await mermaid.render(`folio-mermaid-${run}-${i++}`, source, node);
-					node.innerHTML = svg;
+					node.innerHTML = svg + expandButton;
 					node.classList.remove('mermaid-failed');
 					node.removeAttribute('title');
 				} catch {
@@ -251,6 +273,31 @@
 		</article>
 	</div>
 
+	<Dialog.Root
+		open={enlarged !== null}
+		onOpenChange={(open) => {
+			if (!open) enlarged = null;
+		}}
+	>
+		<Dialog.Content
+			class="w-max max-w-[calc(100vw-2rem)] gap-0 p-3 pt-12 sm:max-w-[calc(100vw-2rem)]"
+		>
+			<Dialog.Title class="sr-only">Diagram</Dialog.Title>
+			<Dialog.Description class="sr-only">Enlarged view of the diagram</Dialog.Description>
+			{#if enlarged}
+				<!-- As large as the viewport allows in either direction, keeping the diagram's proportions. -->
+				<div
+					class="diagram-zoom"
+					style="width: min(calc(100vw - 4rem), calc((100svh - 6rem) * {enlarged.ratio.toFixed(
+						4
+					)}))"
+				>
+					{@html enlarged.html}
+				</div>
+			{/if}
+		</Dialog.Content>
+	</Dialog.Root>
+
 	<aside
 		class="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:self-start lg:overflow-y-auto"
 	>
@@ -337,3 +384,46 @@
 		{/if}
 	</aside>
 </div>
+
+<style>
+	/* Rendered diagrams open enlarged on click, or from a corner button that shows on hover. */
+	:global(.folio-doc pre.mermaid) {
+		position: relative;
+	}
+	:global(.folio-doc pre.mermaid:not(.mermaid-failed)) {
+		cursor: zoom-in;
+	}
+	:global(.folio-doc .mermaid-expand) {
+		position: absolute;
+		top: 0.25rem;
+		right: 0.25rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: 0.375rem;
+		border: 1px solid var(--doc-border);
+		background: var(--doc-surface);
+		color: var(--doc-muted);
+		opacity: 0;
+		transition: opacity 120ms;
+		cursor: pointer;
+	}
+	:global(.folio-doc pre.mermaid:hover .mermaid-expand),
+	:global(.folio-doc .mermaid-expand:focus-visible) {
+		opacity: 1;
+	}
+	@media (hover: none) {
+		:global(.folio-doc .mermaid-expand) {
+			opacity: 1;
+		}
+	}
+	/* Mermaid pins an inline max-width on its SVG; the viewer fills its sized box instead. */
+	:global(.diagram-zoom svg) {
+		display: block;
+		width: 100% !important;
+		max-width: none !important;
+		height: auto;
+	}
+</style>
