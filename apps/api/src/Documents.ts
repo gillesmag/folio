@@ -7,6 +7,8 @@ import {
 	DocumentRow,
 	DocumentSummary,
 	Forbidden,
+	OrganizationNotFound,
+	type OrganizationId,
 	type DocumentId,
 	type User,
 	type UserId
@@ -16,16 +18,14 @@ import { SqlClient, SqlModel, SqlSchema } from 'effect/unstable/sql';
 import { Bodies } from './Bodies.ts';
 import { EdgeCache } from './EdgeCache.ts';
 import { shortId } from './Ids.ts';
+import { Organizations } from './Organizations.ts';
 import { Render } from './Render.ts';
-
-/** Whether `user` may read `doc`. Private documents are owner-only; the rest are link-visible. */
-export const canRead = (doc: { ownerId: UserId; visibility: string }, user: Option.Option<User>) =>
-	doc.visibility !== 'private' || Option.exists(user, (u) => u.id === doc.ownerId);
 
 const join = (row: DocumentRow, body: DocumentBody) =>
 	new Document({
 		id: row.id,
 		ownerId: row.ownerId,
+		organizationId: row.organizationId,
 		title: row.title,
 		visibility: row.visibility,
 		version: row.version,
@@ -40,21 +40,25 @@ export class Documents extends Context.Service<
 	Documents,
 	{
 		list(owner: UserId): Effect.Effect<Array<DocumentSummary>>;
+		canRead(
+			doc: Pick<DocumentRow, 'ownerId' | 'visibility' | 'organizationId'>,
+			user: Option.Option<User>
+		): Effect.Effect<boolean>;
 		/** Index row only: one small D1 read. Callers enforce visibility with `canRead`. */
 		head(id: DocumentId): Effect.Effect<DocumentRow, DocumentNotFound>;
 		/** Row plus current body, served from the edge cache when warm. */
 		get(id: DocumentId): Effect.Effect<Document, DocumentNotFound>;
-		create(owner: UserId, input: DocumentInput): Effect.Effect<Document>;
+		create(owner: UserId, input: DocumentInput): Effect.Effect<Document, OrganizationNotFound>;
 		replace(
 			actor: UserId,
 			id: DocumentId,
 			input: DocumentInput
-		): Effect.Effect<Document, DocumentNotFound | Forbidden>;
+		): Effect.Effect<Document, DocumentNotFound | Forbidden | OrganizationNotFound>;
 		update(
 			actor: UserId,
 			id: DocumentId,
 			patch: DocumentPatch
-		): Effect.Effect<Document, DocumentNotFound | Forbidden>;
+		): Effect.Effect<Document, DocumentNotFound | Forbidden | OrganizationNotFound>;
 		remove(actor: UserId, id: DocumentId): Effect.Effect<void, DocumentNotFound | Forbidden>;
 	}
 >()('folio/api/Documents') {
@@ -65,23 +69,40 @@ export class Documents extends Context.Service<
 			const bodies = yield* Bodies;
 			const cache = yield* EdgeCache;
 			const renderer = yield* Render;
+			const organizations = yield* Organizations;
 			const repo = yield* SqlModel.makeRepository(DocumentRow, {
 				tableName: 'document',
 				spanPrefix: 'Documents',
 				idColumn: 'id'
 			});
 
-			const listByOwner = SqlSchema.findAll({
+			const listVisible = SqlSchema.findAll({
 				Request: Schema.String,
 				Result: DocumentSummary,
 				execute: (owner) =>
-					sql`SELECT id, ownerId, title, visibility, version, createdAt, updatedAt
-					    FROM document WHERE ownerId = ${owner} ORDER BY updatedAt DESC`
+					sql`SELECT id, ownerId, organizationId, title, visibility, version, createdAt, updatedAt
+					    FROM document WHERE ownerId = ${owner} OR organizationId IN (
+						SELECT id FROM organization WHERE creatorId = ${owner}
+						UNION SELECT organizationId FROM organization_member WHERE userId = ${owner}
+						) ORDER BY updatedAt DESC`
 			});
 
 			const list = Effect.fn('Documents.list')((owner: UserId) =>
-				listByOwner(owner).pipe(Effect.orDie)
+				listVisible(owner).pipe(Effect.orDie)
 			);
+
+			const canRead = Effect.fn('Documents.canRead')(function* (
+				doc: Pick<DocumentRow, 'ownerId' | 'visibility' | 'organizationId'>,
+				user: Option.Option<User>
+			) {
+				if (doc.visibility !== 'private') return true;
+				if (Option.isNone(user)) return false;
+				if (user.value.id === doc.ownerId) return true;
+				return (
+					doc.organizationId !== null &&
+					(yield* organizations.isMember(user.value.id, doc.organizationId))
+				);
+			});
 
 			const head = Effect.fn('Documents.head')((id: DocumentId) =>
 				repo.findById(id).pipe(
@@ -132,6 +153,10 @@ export class Documents extends Context.Service<
 			});
 
 			const create = Effect.fn('Documents.create')(function* (owner: UserId, input: DocumentInput) {
+				const organizationId = yield* organizations.resolve(
+					owner,
+					input.organization ?? 'personal'
+				);
 				const id = (yield* shortId) as DocumentId;
 				const rendered = yield* render(input.source, input.title);
 				// Body first: an orphaned object is harmless, a row without a body is not.
@@ -140,6 +165,7 @@ export class Documents extends Context.Service<
 					.makeEffect({
 						id,
 						ownerId: owner,
+						organizationId,
 						title: rendered.title,
 						visibility: input.visibility ?? 'private',
 						version: 1
@@ -164,6 +190,7 @@ export class Documents extends Context.Service<
 			const write = Effect.fn('Documents.write')(function* (
 				existing: DocumentRow,
 				next: {
+					organizationId?: OrganizationId | null | undefined;
 					title?: string | undefined;
 					source?: string | undefined;
 					visibility?: DocumentRow['visibility'] | undefined;
@@ -187,6 +214,8 @@ export class Documents extends Context.Service<
 					.makeEffect({
 						id: existing.id,
 						ownerId: existing.ownerId,
+						organizationId:
+							next.organizationId === undefined ? existing.organizationId : next.organizationId,
 						title,
 						visibility: next.visibility ?? existing.visibility,
 						version
@@ -206,7 +235,11 @@ export class Documents extends Context.Service<
 				return yield* write(existing, {
 					title: input.title,
 					source: input.source,
-					visibility: input.visibility
+					visibility: input.visibility,
+					organizationId:
+						input.organization === undefined
+							? existing.organizationId
+							: yield* organizations.resolve(actor, input.organization)
 				});
 			});
 
@@ -216,7 +249,11 @@ export class Documents extends Context.Service<
 				patch: DocumentPatch
 			) {
 				const existing = yield* requireOwner(actor, id);
-				return yield* write(existing, patch);
+				const organizationId =
+					patch.organization === undefined
+						? existing.organizationId
+						: yield* organizations.resolve(actor, patch.organization);
+				return yield* write(existing, { ...patch, organizationId });
 			});
 
 			const remove = Effect.fn('Documents.remove')(function* (actor: UserId, id: DocumentId) {
@@ -226,7 +263,7 @@ export class Documents extends Context.Service<
 				yield* bodies.removeAll(id);
 			});
 
-			return Documents.of({ list, head, get, create, replace, update, remove });
+			return Documents.of({ list, canRead, head, get, create, replace, update, remove });
 		})
 	);
 }

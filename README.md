@@ -1,6 +1,6 @@
 # Folio
 
-Push markdown documents with rich content, read them instantly, comment on any block. Built for one person and their agents. Hosted on Cloudflare.
+Push markdown documents with rich content, read them instantly, comment on any block. Built for you, your organizations, and your agents. Hosted on Cloudflare.
 
 ## Layout
 
@@ -14,7 +14,7 @@ Push markdown documents with rich content, read them instantly, comment on any b
 | `cli`               | Rust CLI (`folio push`, `pull`, `list`, `comments`, …) with device-flow login and API-key support.                              |
 | `skills/cli`        | Agent skill that teaches Claude Code and similar tools the CLI workflow.                                                        |
 
-Rendering happens once on write inside the API Worker. Each version of a document is an immutable JSON object in R2 (`docs/<id>/<version>.json`: source, rendered HTML, render metadata); D1 keeps only the index row (owner, title, visibility, current version) and comments. Reads go index row → Cache API → R2, and because the version is in the key, cache entries live for a year and never go stale. Anonymous views of public and unlisted pages are additionally cached whole at the edge for a minute. The same HTML will feed the iOS app's web view.
+Rendering happens once on write inside the API Worker. Each version of a document is an immutable JSON object in R2 (`docs/<id>/<version>.json`: source, rendered HTML, render metadata); D1 keeps only the index row (owner, title, visibility, current version) and comments. Reads go index row → Cache API → R2, and because the version is in the key, cache entries live for a year and never go stale. Document pages check current permissions on every request. The same HTML will feed the iOS app's web view.
 
 ## Develop
 
@@ -122,12 +122,26 @@ Add to `apps/web/wrangler.jsonc` and redeploy the web app, then set the API buil
 
 ### What the code enforces
 
-- Documents are private by default; private ones answer 404 to anyone but the owner, so ids cannot be probed. Ids carry ~71 bits of entropy, which is what makes `unlisted` safe.
+- Documents are private by default; private ones answer 404 to anyone outside the owner and the document's organization, so ids cannot be probed. Ids carry ~71 bits of entropy, which is what makes `unlisted` safe.
 - Raw HTML in markdown is disabled and the output is sanitized before highlighting; `javascript:` links are dropped. Mermaid runs in its strict mode on the client.
 - Pages carry a CSP (`script-src 'self'` with per-request nonces, `frame-ancestors 'none'`), `nosniff`, `X-Frame-Options`, a referrer policy, and HSTS on https.
 - Post-login redirects only accept same-origin paths. Cross-site requests are blocked by `SameSite=Lax` cookies, SvelteKit's origin check on form actions, and Better Auth's trusted-origin check.
 - Payloads are bounded: 300 KB of markdown, 300-character titles, 20 KB comments.
 - Only the `folio-cli` client id may start a device flow, codes expire after 10 minutes, and the approval page names the client before you approve.
+
+## Organizations
+
+Open **Organizations** from your profile menu to create an organization or accept an invitation. Each user can create one organization and join others. The creator invites members by email. Recipients sign in with that email and accept under **Organizations**. Invitations expire after seven days; Folio does not send email.
+
+Documents start in **Personal**. Open a document's **Share** dialog to move it to an organization or back to Personal. Members can read and comment; the document owner keeps control of edits, sharing, and deletion. The document list labels each organization and has a dropdown filter. When a member leaves or is removed, their documents return to Personal.
+
+```sh
+folio push notes.md --org acme
+folio push notes.md --org org_abc123
+folio push notes.md                          # Personal
+```
+
+The CLI always defaults to Personal, including uploads with `--id`. Pass `--org` on every upload that belongs in an organization. Find the slug and ID on the organization's settings page.
 
 ## API
 

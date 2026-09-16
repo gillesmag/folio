@@ -1,8 +1,8 @@
-import { Api, CurrentUser, DocumentNotFound } from '@folio/contract';
+import { Api, CurrentUser, DocumentNotFound, CommentNotFound } from '@folio/contract';
 import { Effect } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Comments } from '../Comments.ts';
-import { canRead, Documents } from '../Documents.ts';
+import { Documents } from '../Documents.ts';
 import { requireUser } from './shared.ts';
 
 export const CommentsHandlers = HttpApiBuilder.group(
@@ -18,7 +18,7 @@ export const CommentsHandlers = HttpApiBuilder.group(
 		) {
 			const user = yield* CurrentUser;
 			const doc = yield* documents.get(id);
-			if (!canRead(doc, user)) return yield* new DocumentNotFound({ id });
+			if (!(yield* documents.canRead(doc, user))) return yield* new DocumentNotFound({ id });
 			return doc;
 		});
 
@@ -33,13 +33,19 @@ export const CommentsHandlers = HttpApiBuilder.group(
 			resolve: Effect.fn(function* ({ params, payload }) {
 				const user = yield* requireUser;
 				const comment = yield* comments.get(params.id);
-				const doc = yield* documents.get(comment.documentId).pipe(Effect.orDie);
+				const doc = yield* documents.head(comment.documentId).pipe(Effect.orDie);
+				if (!(yield* documents.canRead(doc, yield* CurrentUser))) {
+					return yield* new CommentNotFound({ id: params.id });
+				}
 				return yield* comments.setResolved(user.id, doc.ownerId, params.id, payload.resolved);
 			}),
 			remove: Effect.fn(function* ({ params }) {
 				const user = yield* requireUser;
 				const comment = yield* comments.get(params.id);
-				const doc = yield* documents.get(comment.documentId).pipe(Effect.orDie);
+				const doc = yield* documents.head(comment.documentId).pipe(Effect.orDie);
+				if (!(yield* documents.canRead(doc, yield* CurrentUser))) {
+					return yield* new CommentNotFound({ id: params.id });
+				}
 				return yield* comments.remove(user.id, doc.ownerId, params.id);
 			})
 		});

@@ -1,7 +1,7 @@
 import { Api, DocumentNotFound, Forbidden, CurrentUser } from '@folio/contract';
 import { Effect } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
-import { canRead, Documents } from '../Documents.ts';
+import { Documents } from '../Documents.ts';
 import { requireUser } from './shared.ts';
 
 export const DocumentsHandlers = HttpApiBuilder.group(
@@ -14,7 +14,7 @@ export const DocumentsHandlers = HttpApiBuilder.group(
 			get: Effect.fn(function* ({ params }) {
 				const user = yield* CurrentUser;
 				const doc = yield* documents.get(params.id);
-				if (!canRead(doc, user)) {
+				if (!(yield* documents.canRead(doc, user))) {
 					// Do not reveal that a private document exists.
 					return yield* new DocumentNotFound({ id: params.id });
 				}

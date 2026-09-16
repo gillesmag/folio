@@ -24,6 +24,7 @@ pub struct User {
 pub struct Document {
     pub id: String,
     pub title: String,
+    pub organization_id: Option<String>,
     pub visibility: String,
     pub version: u64,
     pub source: String,
@@ -35,6 +36,7 @@ impl Document {
         DocumentSummary {
             id: self.id.clone(),
             title: self.title.clone(),
+            organization_id: self.organization_id.clone(),
             visibility: self.visibility.clone(),
             version: self.version,
             updated_at: self.updated_at.clone(),
@@ -47,6 +49,7 @@ impl Document {
 pub struct DocumentSummary {
     pub id: String,
     pub title: String,
+    pub organization_id: Option<String>,
     pub visibility: String,
     pub version: u64,
     pub updated_at: String,
@@ -54,6 +57,7 @@ pub struct DocumentSummary {
 
 #[derive(Debug, Serialize)]
 pub struct DocumentInput {
+    pub organization: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     pub source: String,
@@ -134,20 +138,36 @@ impl Client {
     }
 
     pub async fn me(&self) -> Result<User> {
-        Ok(self.send(self.http.get(format!("{}/me", self.base))).await?.json().await?)
+        Ok(self
+            .send(self.http.get(format!("{}/me", self.base)))
+            .await?
+            .json()
+            .await?)
     }
 
     pub async fn list(&self) -> Result<Vec<DocumentSummary>> {
-        Ok(self.send(self.http.get(format!("{}/documents", self.base))).await?.json().await?)
+        Ok(self
+            .send(self.http.get(format!("{}/documents", self.base)))
+            .await?
+            .json()
+            .await?)
     }
 
     pub async fn get(&self, id: &str) -> Result<Document> {
-        Ok(self.send(self.http.get(format!("{}/documents/{id}", self.base))).await?.json().await?)
+        Ok(self
+            .send(self.http.get(format!("{}/documents/{id}", self.base)))
+            .await?
+            .json()
+            .await?)
     }
 
     pub async fn create(&self, input: &DocumentInput) -> Result<Document> {
         Ok(self
-            .send(self.http.post(format!("{}/documents", self.base)).json(input))
+            .send(
+                self.http
+                    .post(format!("{}/documents", self.base))
+                    .json(input),
+            )
             .await?
             .json()
             .await?)
@@ -155,20 +175,28 @@ impl Client {
 
     pub async fn replace(&self, id: &str, input: &DocumentInput) -> Result<Document> {
         Ok(self
-            .send(self.http.put(format!("{}/documents/{id}", self.base)).json(input))
+            .send(
+                self.http
+                    .put(format!("{}/documents/{id}", self.base))
+                    .json(input),
+            )
             .await?
             .json()
             .await?)
     }
 
     pub async fn remove(&self, id: &str) -> Result<()> {
-        self.send(self.http.delete(format!("{}/documents/{id}", self.base))).await?;
+        self.send(self.http.delete(format!("{}/documents/{id}", self.base)))
+            .await?;
         Ok(())
     }
 
     pub async fn comments(&self, id: &str) -> Result<Vec<Comment>> {
         Ok(self
-            .send(self.http.get(format!("{}/documents/{id}/comments", self.base)))
+            .send(
+                self.http
+                    .get(format!("{}/documents/{id}/comments", self.base)),
+            )
             .await?
             .json()
             .await?)

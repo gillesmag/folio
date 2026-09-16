@@ -1,6 +1,7 @@
 import { Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
-import { DocumentId, UserId } from './ids.ts';
+import { OrganizationSelector } from './Organization.ts';
+import { DocumentId, OrganizationId, UserId } from './ids.ts';
 
 export const Visibility = Schema.Literals(['private', 'unlisted', 'public']);
 export type Visibility = typeof Visibility.Type;
@@ -28,6 +29,7 @@ export type RenderMeta = typeof RenderMeta.Type;
 export class DocumentRow extends Model.Class<DocumentRow>('folio/DocumentRow')({
 	id: DocumentId,
 	ownerId: UserId,
+	organizationId: Schema.NullOr(OrganizationId),
 	title: Schema.String,
 	visibility: Visibility,
 	version: Schema.Int,
@@ -46,6 +48,7 @@ export class DocumentBody extends Schema.Class<DocumentBody>('folio/DocumentBody
 export class Document extends Schema.Class<Document>('folio/Document')({
 	id: DocumentId,
 	ownerId: UserId,
+	organizationId: Schema.NullOr(OrganizationId),
 	title: Schema.String,
 	visibility: Visibility,
 	version: Schema.Int,
@@ -60,6 +63,7 @@ export class Document extends Schema.Class<Document>('folio/Document')({
 export class DocumentSummary extends Schema.Class<DocumentSummary>('folio/DocumentSummary')({
 	id: DocumentId,
 	ownerId: UserId,
+	organizationId: Schema.NullOr(OrganizationId),
 	title: Schema.String,
 	visibility: Visibility,
 	version: Schema.Int,
@@ -75,11 +79,13 @@ export class DocumentInput extends Schema.Class<DocumentInput>('folio/DocumentIn
 	/** Optional; falls back to frontmatter title, then first heading, then "Untitled". */
 	title: Schema.optional(Title),
 	source: Source,
-	visibility: Schema.optional(Visibility)
+	visibility: Schema.optional(Visibility),
+	organization: Schema.optional(OrganizationSelector)
 }) {}
 
 export class DocumentPatch extends Schema.Class<DocumentPatch>('folio/DocumentPatch')({
 	title: Schema.optional(Title),
 	source: Schema.optional(Source),
-	visibility: Schema.optional(Visibility)
+	visibility: Schema.optional(Visibility),
+	organization: Schema.optional(OrganizationSelector)
 }) {}

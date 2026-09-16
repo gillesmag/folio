@@ -17,7 +17,17 @@ export const load: PageServerLoad = async (event) => {
 			)
 		)
 	);
-	return { document: toJson.document(document), comments: toJson.comments(comments) };
+	const organizations = event.locals.user
+		? await run(
+				event,
+				Effect.flatMap(client(event), (c) => c.organizations.list())
+			)
+		: [];
+	return {
+		document: toJson.document(document),
+		comments: toJson.comments(comments),
+		organizations
+	};
 };
 
 const decodeComment = Schema.decodeUnknownEffect(CommentInput);
@@ -55,14 +65,15 @@ export const actions: Actions = {
 		);
 		return { ok: true };
 	},
-	visibility: async (event) => {
+	sharing: async (event) => {
 		const form = await event.request.formData();
 		const visibility = String(form.get('visibility') ?? 'private');
+		const organization = String(form.get('organization') ?? 'personal');
 		await run(
 			event,
 			Effect.gen(function* () {
 				// Class schemas encode from instances, so the payload is decoded first rather than passed as a literal.
-				const payload = yield* decodePatch({ visibility }).pipe(Effect.orDie);
+				const payload = yield* decodePatch({ visibility, organization }).pipe(Effect.orDie);
 				const c = yield* client(event);
 				return yield* c.documents.update({
 					params: { id: DocumentId.make(event.params.id) },

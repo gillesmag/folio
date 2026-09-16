@@ -5,19 +5,21 @@ description: Creation defaults, replacement and patch semantics, versions, and l
 
 ## Create
 
-`POST /api/documents` requires `source`. `title` and `visibility` are optional. New documents default to `private` visibility and version `1`.
+`POST /api/documents` requires `source`. `title`, `visibility`, and `organization` are optional. New documents default to Personal, `private` visibility, and version `1`. Set `organization` to a slug or ID of an organization you belong to, or to `personal`. Responses include `organizationId`, which is `null` for Personal.
 
 A successful creation returns status 201 and the complete document, including `source`, `html`, and `meta`.
 
+Moving a document changes its organization, never its owner. Organization members can read and comment; only the document owner can edit, move, or delete it.
+
 ## Replace
 
-`PUT /api/documents/{id}` requires `source` and replaces the document content. It preserves visibility when `visibility` is absent.
+`PUT /api/documents/{id}` requires `source` and replaces the document content. It preserves visibility and organization when their fields are absent. The CLI explicitly sends `personal` when `--org` is omitted.
 
 When `title` is absent or blank, the server derives a title from the new source. It does not preserve a previous explicit title automatically.
 
 ## Patch
 
-`PATCH /api/documents/{id}` accepts any subset of `title`, `source`, and `visibility`.
+`PATCH /api/documents/{id}` accepts any subset of `title`, `source`, `visibility`, and `organization`.
 
 If `source` is present, Folio renders it and derives the title unless a nonblank explicit title is present. Without `source`, it keeps the existing content. A nonblank `title` updates the title. A blank title without source leaves the existing title unchanged.
 

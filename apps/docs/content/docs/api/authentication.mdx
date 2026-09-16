@@ -17,17 +17,17 @@ The CLI obtains a session token with `folio login`. An API key acts as the accou
 
 ## Access rules
 
-| Operation                                          | Access                                       |
-| -------------------------------------------------- | -------------------------------------------- |
-| Health check                                       | Anyone                                       |
-| Current user, list own documents, create document  | Signed-in account or API key                 |
-| Read a private document or its comments            | Document owner                               |
-| Read a public or unlisted document or its comments | Anyone with the ID                           |
-| Replace, update, or delete a document              | Document owner                               |
-| Create a comment                                   | Signed-in account that can read the document |
-| Resolve, reopen, or delete a comment               | Comment author or document owner             |
+| Operation                                          | Access                                                    |
+| -------------------------------------------------- | --------------------------------------------------------- |
+| Health check                                       | Anyone                                                    |
+| Current user, list documents, create document      | Signed-in account or API key                              |
+| Read a private document or its comments            | Document owner or organization member                     |
+| Read a public or unlisted document or its comments | Anyone with the ID                                        |
+| Replace, update, or delete a document              | Document owner                                            |
+| Create a comment                                   | Signed-in account that can read the document              |
+| Resolve, reopen, or delete a comment               | Comment author or document owner with current read access |
 
-Private document reads return 404 for non-owners, including anonymous callers. Listing documents returns only the caller's documents. Public visibility does not add a document to another user's list.
+Private document reads return 404 unless the caller owns the document or belongs to its organization. The list includes the caller's documents and documents in their organizations. Public visibility alone does not add a document to another user's list.
 
 ## Domain errors
 
@@ -40,12 +40,14 @@ Domain errors have a JSON body with a `_tag` field:
 }
 ```
 
-| HTTP status | Tag                | Additional field |
-| ----------- | ------------------ | ---------------- |
-| 401         | `Unauthorized`     | `message`        |
-| 403         | `Forbidden`        | `message`        |
-| 404         | `DocumentNotFound` | `id`             |
-| 404         | `CommentNotFound`  | `id`             |
+| HTTP status | Tag                    | Additional field |
+| ----------- | ---------------------- | ---------------- |
+| 401         | `Unauthorized`         | `message`        |
+| 403         | `Forbidden`            | `message`        |
+| 404         | `DocumentNotFound`     | `id`             |
+| 404         | `CommentNotFound`      | `id`             |
+| 404         | `OrganizationNotFound` | `message`        |
+| 409         | `Conflict`             | `message`        |
 
 Invalid payloads are rejected by schema validation. Transport, validation, and authentication-library errors may use a different body shape. Clients must check the HTTP status before assuming a domain-error format.
 

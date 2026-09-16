@@ -66,8 +66,11 @@ enum Command {
         /// Replace an existing document instead of creating one.
         #[arg(long)]
         id: Option<String>,
+        /// Organization slug or ID; defaults to Personal, including with --id.
+        #[arg(long, default_value = "personal")]
+        org: String,
     },
-    /// List your documents.
+    /// List your documents and documents shared with your organizations.
     List,
     /// Print a document's markdown source (or write it to a file).
     Pull {
@@ -116,12 +119,19 @@ async fn run() -> Result<()> {
             }
             Ok(())
         }
-        Command::Push { file, title, visibility, id } => {
+        Command::Push {
+            file,
+            title,
+            visibility,
+            id,
+            org,
+        } => {
             let source = read_source(&file)?;
             let client = Client::authenticated(&config)?;
             let input = DocumentInput {
                 title,
                 source,
+                organization: org,
                 visibility: visibility.map(Visibility::as_str),
             };
             let doc = match id {
@@ -144,7 +154,14 @@ async fn run() -> Result<()> {
                 println!("No documents yet. Push one with: folio push README.md");
             } else {
                 for d in docs {
-                    println!("{:<14} {:<9} v{:<4} {}", d.id, d.visibility, d.version, d.title);
+                    println!(
+                        "{:<14} {:<9} v{:<4} {:<18} {}",
+                        d.id,
+                        d.visibility,
+                        d.version,
+                        d.organization_id.as_deref().unwrap_or("Personal"),
+                        d.title
+                    );
                 }
             }
             Ok(())
@@ -178,7 +195,10 @@ async fn run() -> Result<()> {
                 for c in comments {
                     let anchor = c.block_id.as_deref().unwrap_or("document");
                     let state = if c.resolved { "resolved" } else { "open" };
-                    println!("[{}] {} ({}, {})\n  {}\n", c.id, anchor, state, c.created_at, c.body);
+                    println!(
+                        "[{}] {} ({}, {})\n  {}\n",
+                        c.id, anchor, state, c.created_at, c.body
+                    );
                 }
             }
             Ok(())
@@ -196,7 +216,9 @@ async fn run() -> Result<()> {
 fn read_source(file: &PathBuf) -> Result<String> {
     if file.as_os_str() == "-" {
         let mut buf = String::new();
-        std::io::stdin().read_to_string(&mut buf).context("reading stdin")?;
+        std::io::stdin()
+            .read_to_string(&mut buf)
+            .context("reading stdin")?;
         return Ok(buf);
     }
     let source =
@@ -205,4 +227,42 @@ fn read_source(file: &PathBuf) -> Result<String> {
         bail!("{} is empty", file.display());
     }
     Ok(source)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uploads_default_to_personal_even_when_replacing() {
+        for args in [
+            vec!["folio", "push", "notes.md"],
+            vec!["folio", "push", "notes.md", "--id", "doc123"],
+        ] {
+            let cli = Cli::try_parse_from(args).expect("valid push arguments");
+            let Command::Push { org, .. } = cli.command else {
+                panic!("expected push");
+            };
+            assert_eq!(org, "personal");
+        }
+    }
+
+    #[test]
+    fn uploads_accept_an_organization_slug_or_id() {
+        for selector in ["acme-team", "org_abc123", "personal"] {
+            let cli = Cli::try_parse_from(["folio", "push", "-", "--org", selector])
+                .expect("valid organization argument");
+            let Command::Push { org, .. } = cli.command else {
+                panic!("expected push");
+            };
+            let input = DocumentInput {
+                title: None,
+                source: "# Notes".to_owned(),
+                visibility: None,
+                organization: org,
+            };
+            let payload = serde_json::to_value(input).expect("serializable input");
+            assert_eq!(payload["organization"], selector);
+        }
+    }
 }

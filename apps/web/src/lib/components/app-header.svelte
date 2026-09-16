@@ -65,6 +65,9 @@
 						<div class="text-muted-foreground text-xs">{user.email}</div>
 					</div>
 					<div class="bg-border my-1 h-px"></div>
+					<a href="/settings/organizations" class="hover:bg-accent block rounded-sm px-2 py-1.5"
+						>Organizations</a
+					>
 					<a href="/settings/keys" class="hover:bg-accent block rounded-sm px-2 py-1.5">API keys</a>
 					<a href="/api/docs" class="hover:bg-accent block rounded-sm px-2 py-1.5">API reference</a>
 					<div class="bg-border my-1 h-px"></div>

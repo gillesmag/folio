@@ -39,6 +39,7 @@
 			{#if user}
 				<Command.Item onSelect={() => go('/new')}>New document</Command.Item>
 				<Command.Item onSelect={() => go('/')}>My documents</Command.Item>
+				<Command.Item onSelect={() => go('/settings/organizations')}>Organizations</Command.Item>
 				<Command.Item onSelect={() => go('/settings/keys')}>API keys</Command.Item>
 			{:else}
 				<Command.Item onSelect={() => go('/login')}>Sign in</Command.Item>

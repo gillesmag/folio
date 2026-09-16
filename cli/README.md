@@ -39,6 +39,15 @@ folio login --server https://folio.example.com
 folio push README.md
 ```
 
+Use an organization slug or ID to share an upload with its members:
+
+```sh
+folio push notes.md --org acme
+folio push notes.md --id DOCUMENT_ID --org org_abc123
+```
+
+Without `--org`, uploads go to Personal, including replacements with `--id`. Find organization slugs and IDs under **Organizations** in the app. You must be a member to upload into an organization. You remain the document owner.
+
 Credentials go to the OS keychain when one is available, otherwise to `~/.config/folio/credentials/<host>` (mode 600). `FOLIO_API_KEY` and `FOLIO_TOKEN` override both. The agent skill lives at `skills/cli/` in the repo root.
 
 ## Release

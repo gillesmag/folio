@@ -27,7 +27,7 @@ To replace a document, pass its ID:
 folio push notes.md --id DOCUMENT_ID
 ```
 
-Replacement recalculates the title from the new source when `--title` is absent. It preserves the existing visibility unless you pass `--visibility`.
+Replacement recalculates the title from the new source when `--title` is absent. It preserves the existing visibility unless you pass `--visibility`. Pass `--org SLUG_OR_ID` to keep the document in an organization. Without `--org`, the CLI moves it to Personal.
 
 ## Publish generated Markdown
 

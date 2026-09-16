@@ -19,7 +19,7 @@ Commands:
   logout       Forget the stored session token
   whoami       Show the signed-in user
   push         Push a markdown file (or stdin with "-") as a new document, or replace one with --id
-  list         List your documents
+  list         List your documents and documents shared with your organizations
   pull         Print a document's markdown source (or write it to a file)
   open         Open a document in the browser
   comments     List comments on a document
@@ -89,13 +89,14 @@ Options:
       --json                     Print machine-readable JSON instead of text
       --visibility <VISIBILITY>  Who can see the document [possible values: private, unlisted, public]
       --id <ID>                  Replace an existing document instead of creating one
+      --org <ORG>                Organization slug or ID; defaults to Personal, including with --id [default: personal]
   -h, --help                     Print help
 ```
 
 ## folio list
 
 ```text
-List your documents
+List your documents and documents shared with your organizations
 
 Usage: folio list [OPTIONS]
 

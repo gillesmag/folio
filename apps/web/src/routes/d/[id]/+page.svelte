@@ -4,6 +4,7 @@
 	import { commentMode } from '$lib/comment-mode.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Dialog from '$lib/components/ui/dialog';
 	// Bundled with hashed URL and fonts, so math never depends on a third-party CDN.
@@ -11,8 +12,15 @@
 
 	let { data, form } = $props();
 	const doc = $derived(data.document);
+	const documentId = $derived(doc.id);
 	const isOwner = $derived(data.user?.id === doc.ownerId);
 	const canComment = $derived(data.user !== null);
+	let sharingOpen = $state(false);
+	const organizationName = $derived(
+		doc.organizationId === null
+			? 'Personal'
+			: data.organizations.find((o) => o.id === doc.organizationId)?.name
+	);
 	let anchor = $state<string | null>(null);
 	let article = $state<HTMLElement | null>(null);
 	let activeHeading = $state<string | null>(null);
@@ -22,7 +30,7 @@
 
 	// Every document opens with comments hidden, including when moving from one document to another.
 	$effect(() => {
-		void doc.id;
+		void documentId;
 		commentMode.open = false;
 		return () => {
 			commentMode.open = false;
@@ -239,23 +247,13 @@
 				class="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-2 text-[0.8125rem]"
 				class:mt-3={showTitle}
 			>
+				{#if organizationName}<Badge variant="secondary">{organizationName}</Badge>{/if}
 				<Badge variant="outline" class="font-normal capitalize">{doc.visibility}</Badge>
 				<span>Updated {updated}</span>
 				<span>v{doc.version}</span>
 				{#if isOwner}
 					<span class="ml-auto flex items-center gap-2">
-						<form method="post" action="?/visibility" use:enhance class="contents">
-							<select
-								name="visibility"
-								class="border-input bg-background h-7 rounded-md border px-2 text-xs"
-								value={doc.visibility}
-								onchange={(e) => (e.currentTarget.form as HTMLFormElement).requestSubmit()}
-							>
-								<option value="private">Private</option>
-								<option value="unlisted">Unlisted</option>
-								<option value="public">Public</option>
-							</select>
-						</form>
+						<Button variant="outline" size="sm" onclick={() => (sharingOpen = true)}>Share</Button>
 						<Button href="/d/{doc.id}/edit" variant="outline" size="sm">Edit</Button>
 					</span>
 				{/if}
@@ -272,6 +270,63 @@
 			{@html doc.html}
 		</article>
 	</div>
+
+	{#if isOwner}
+		<Dialog.Root bind:open={sharingOpen}>
+			<Dialog.Content class="sm:max-w-md">
+				<Dialog.Header>
+					<Dialog.Title>Share document</Dialog.Title>
+					<Dialog.Description
+						>Organization members can read and comment. You keep ownership and control of edits.</Dialog.Description
+					>
+				</Dialog.Header>
+				<form
+					method="post"
+					action="?/sharing"
+					use:enhance={() =>
+						async ({ result, update }) => {
+							await update();
+							if (result.type === 'success') sharingOpen = false;
+						}}
+					class="space-y-4"
+				>
+					<div class="space-y-2">
+						<Label for="share-organization">Organization</Label>
+						<select
+							id="share-organization"
+							name="organization"
+							value={doc.organizationId ?? 'personal'}
+							class="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+						>
+							<option value="personal">Personal</option>
+							{#each data.organizations as org (org.id)}<option value={org.id}>{org.name}</option
+								>{/each}
+						</select>
+						<p class="text-muted-foreground text-xs">
+							Moving a document changes which organization can access it.
+						</p>
+					</div>
+					<div class="space-y-2">
+						<Label for="share-visibility">Link access</Label>
+						<select
+							id="share-visibility"
+							name="visibility"
+							value={doc.visibility}
+							class="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+						>
+							<option value="private">Private · owner and organization members</option>
+							<option value="unlisted">Unlisted · anyone with the link</option>
+							<option value="public">Public · anyone</option>
+						</select>
+						<p class="text-muted-foreground text-xs">
+							Private documents in Personal are visible only to you.
+						</p>
+					</div>
+					<Dialog.Footer><Button type="submit">Save sharing</Button></Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+	{/if}
 
 	<Dialog.Root
 		open={enlarged !== null}

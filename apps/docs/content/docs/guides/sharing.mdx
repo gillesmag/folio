@@ -3,7 +3,30 @@ title: Share documents and collect feedback
 description: Choose who can read a document and use comments to review its content.
 ---
 
-## Share a document
+## Share with an organization
+
+1. Open **Organizations** from your profile menu.
+2. Create an organization with a name and unique slug. You can create one organization and join others.
+3. Open the organization and invite people by email.
+4. Ask each person to sign in with the invited email and accept under **Organizations**. Invitations expire after seven days. Folio does not send email.
+5. Open a document, select **Share**, choose the organization, and save.
+
+Organization members can read and comment on its documents. You keep ownership and control of edits, sharing, and deletion. To remove organization access, move the document back to **Personal** in the Share dialog. Use **Private** link access to restrict reading to you and the selected organization's members.
+
+The document list labels each document's organization. Use its dropdown to filter by Personal or an organization.
+
+To upload from the CLI, pass the organization's slug or ID:
+
+```sh
+folio push notes.md --org acme
+folio push notes.md --id DOCUMENT_ID --org org_abc123
+```
+
+Find the slug and ID in the organization's settings. Without `--org`, every CLI upload goes to Personal, including replacements with `--id`.
+
+The organization creator can remove members. Members can leave from the organization's settings. Their documents return to Personal when they leave or are removed.
+
+## Share a document by link
 
 To let anyone with the link read your document, publish it as unlisted:
 
@@ -19,7 +42,7 @@ To restrict access to your account, change the visibility to private in the web 
 folio push notes.md --id DOCUMENT_ID --visibility private
 ```
 
-Anonymous browser views can remain cached for up to one minute after a visibility change.
+Document pages check current permissions on each request.
 
 Public and unlisted documents have the same read access in the current implementation. Folio does not provide a public discovery feed. See the [API access rules](/docs/api/authentication) for details.
 

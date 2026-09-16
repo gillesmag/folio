@@ -8,3 +8,6 @@ export type DocumentId = typeof DocumentId.Type;
 
 export const CommentId = Schema.String.pipe(Schema.brand('CommentId'));
 export type CommentId = typeof CommentId.Type;
+
+export const OrganizationId = Schema.String.pipe(Schema.brand('OrganizationId'));
+export type OrganizationId = typeof OrganizationId.Type;
