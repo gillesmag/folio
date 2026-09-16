@@ -3,6 +3,7 @@ dist
 build
 .svelte-kit
 .wrangler
+wrangler.generated.json
 .dev.vars
 .env
 *.local

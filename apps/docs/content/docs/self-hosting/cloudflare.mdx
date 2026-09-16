@@ -25,7 +25,18 @@ pnpm --filter @folio/api exec wrangler d1 create folio
 pnpm --filter @folio/api exec wrangler r2 bucket create folio-docs
 ```
 
-Copy the database ID printed by Wrangler into `apps/api/wrangler.jsonc`, replacing `REPLACE_WITH_D1_ID`.
+Copy the example deployment environment file, then put the database ID printed by Wrangler in it:
+
+```sh
+cp apps/api/.env.example apps/api/.env
+```
+
+```dotenv title="apps/api/.env"
+D1_DATABASE_ID=<UUID printed by Wrangler>
+APP_URL=https://folio.example.com
+```
+
+The deploy script validates these values and generates `apps/api/wrangler.generated.json` for Wrangler. Both files are ignored by Git, so the public configuration contains no instance-specific database ID or origin.
 
 Keep the configured bindings:
 
@@ -48,7 +59,7 @@ Choose your public web origin, such as `https://folio.example.com`. Add these OA
 | Authorized JavaScript origin | `https://folio.example.com`                      |
 | Authorized redirect URI      | `https://folio.example.com/auth/callback/google` |
 
-Set `APP_URL` in `apps/api/wrangler.jsonc` to the same web origin. Use the exact HTTPS origin without a trailing slash. `APP_URL` controls OAuth callbacks, trusted origins, and cookie settings.
+Set `APP_URL` in `apps/api/.env` to the same web origin. Use the exact HTTPS origin without a trailing slash. `APP_URL` controls OAuth callbacks, trusted origins, and cookie settings.
 
 ## Configure the web domain
 
@@ -62,7 +73,7 @@ For a domain managed in your Cloudflare account, add this top-level property to 
 
 Keep the service binding to `folio-api`. The API Worker has `workers_dev: false` and `preview_urls: false`. Clients reach it through the web app at `/api/*` and `/auth/*`.
 
-You can start with a `workers.dev` origin instead. After the web deployment prints its URL, update `APP_URL` and both Google OAuth values to that origin, then redeploy the API.
+You can start with a `workers.dev` origin instead. For the first API deployment, use `APP_URL=http://localhost:5173`. After the web deployment prints its URL, update `APP_URL` in `apps/api/.env` and both Google OAuth values to that origin, then redeploy the API.
 
 See Cloudflare's [custom domain configuration](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) for domain requirements.
 
@@ -148,7 +159,16 @@ After the first manual deployment, connect each Worker to your repository in **S
 
 Set the install command to `pnpm install --frozen-lockfile`. Include the relevant app, `packages/**`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `package.json`, and `.node-version` in each Worker's build watch paths. Docs builds need `apps/docs/**` and `packages/contract/**`.
 
-Worker secrets persist across deployments. They do not belong in build environment variables. Keep automatic API deployments on the production branch because the deploy script applies remote migrations. Web previews cannot sign in unless their origin matches the configured authentication origin.
+Before the first automatic API build, add these under the `folio-api` Worker's **Settings → Build → Variables and Secrets**:
+
+| Name             | Value                                    |
+| ---------------- | ---------------------------------------- |
+| `D1_DATABASE_ID` | The UUID printed by `wrangler d1 create` |
+| `APP_URL`        | The exact public HTTPS web origin        |
+
+Mark both as secrets to keep their instance-specific values masked in the build settings. These are build-time values used to generate the ignored Wrangler deployment config. They are separate from the Worker's runtime authentication secrets, which persist across deployments.
+
+Keep automatic API deployments on the production branch because the deploy script applies remote migrations. Web previews cannot sign in unless their origin matches the configured authentication origin.
 
 See [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) for repository and branch settings.
 
@@ -159,7 +179,8 @@ Before an upgrade, back up both D1 and R2. D1 holds the index and account data. 
 To export D1:
 
 ```sh
-pnpm --filter @folio/api exec wrangler d1 export folio --remote --output folio-backup.sql
+pnpm --filter @folio/api run config:deploy
+pnpm --filter @folio/api exec wrangler d1 export folio --remote --config wrangler.generated.json --output folio-backup.sql
 ```
 
 Use an R2-compatible backup tool or the S3 API to copy the bucket's objects to separate storage. Restrict access to backups because they contain private documents and authentication data.

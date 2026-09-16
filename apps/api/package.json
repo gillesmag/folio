@@ -5,12 +5,13 @@
 	"type": "module",
 	"scripts": {
 		"dev": "wrangler dev",
-		"deploy": "wrangler d1 migrations apply folio --remote && wrangler deploy",
+		"config:deploy": "node scripts/generate-deploy-config.mjs",
+		"deploy": "pnpm run config:deploy && wrangler d1 migrations apply folio --remote --config wrangler.generated.json && wrangler deploy --config wrangler.generated.json",
 		"check": "tsc --noEmit",
 		"test": "vitest run --passWithNoTests",
 		"cf-typegen": "wrangler types ./src/worker-configuration.d.ts",
 		"db:migrate:local": "wrangler d1 migrations apply folio --local",
-		"db:migrate": "wrangler d1 migrations apply folio --remote"
+		"db:migrate": "pnpm run config:deploy && wrangler d1 migrations apply folio --remote --config wrangler.generated.json"
 	},
 	"dependencies": {
 		"@better-auth/api-key": "1.7.4",

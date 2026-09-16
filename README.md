@@ -50,13 +50,15 @@ cd apps/api
 pnpm exec wrangler login                       # browser OAuth; grants every permission Wrangler needs
 
 # 1. Resources
-pnpm exec wrangler d1 create folio             # copy the printed database_id into wrangler.jsonc (REPLACE_WITH_D1_ID)
+pnpm exec wrangler d1 create folio
 pnpm exec wrangler r2 bucket create folio-docs
 
-# 2. Schema
-pnpm exec wrangler d1 migrations apply folio --remote
+# 2. Account-specific deployment values (this file is ignored by Git)
+cp .env.example .env
+#    set D1_DATABASE_ID to the UUID printed above
+#    set APP_URL to the intended web origin, or http://localhost:5173 temporarily
 
-# 3. First API deploy (APP_URL is still the localhost placeholder; fixed in step 6)
+# 3. First API deploy (generates a private config and applies D1 migrations)
 pnpm run deploy
 
 # 4. Secrets (the Worker must exist first)
@@ -70,7 +72,7 @@ pnpm run deploy                                # e.g. https://folio-web.<subdoma
 
 # 6. Point the API at the web origin and redeploy it
 cd ../api
-#    edit wrangler.jsonc: "APP_URL": "https://folio-web.<subdomain>.workers.dev"
+#    edit .env: APP_URL=https://folio-web.<subdomain>.workers.dev
 pnpm run deploy
 
 # 7. Google Cloud Console → your OAuth client:
@@ -97,11 +99,13 @@ Workers Builds deploys on every push once each Worker is connected to the repo. 
 | Build watch paths            | `apps/api/**`, `packages/**`, `pnpm-lock.yaml`       | `apps/web/**`, `packages/**`, `pnpm-lock.yaml`                         |
 | Non-production branch builds | off                                                  | optional (previews cannot sign in; `APP_URL` is the production origin) |
 
-Node comes from `.node-version`; pnpm from the `packageManager` field. Worker secrets persist across deploys, so nothing goes into build variables. Connect `folio-api` first so the web build always finds its binding.
+For `folio-api`, add `D1_DATABASE_ID` and `APP_URL` under **Settings → Build → Variables and Secrets** before its first automatic build. Mark them as secrets to keep the instance-specific values out of source and masked in the build settings. The deploy script uses them to generate the ignored `apps/api/wrangler.generated.json`; they are distinct from Worker runtime secrets such as `BETTER_AUTH_SECRET`, which persist across deployments.
+
+Node comes from `.node-version`; pnpm from the `packageManager` field. Connect `folio-api` first so the web build always finds its binding.
 
 ### Custom domain
 
-Add to `apps/web/wrangler.jsonc` and redeploy the web app, then set `APP_URL` to the same origin and redeploy the API. Update the Google OAuth client to match.
+Add to `apps/web/wrangler.jsonc` and redeploy the web app, then set the API build variable `APP_URL` (or `apps/api/.env` for a local deploy) to the same origin and redeploy the API. Update the Google OAuth client to match.
 
 ```jsonc
 "routes": [{ "pattern": "folio.example.com", "custom_domain": true }]
