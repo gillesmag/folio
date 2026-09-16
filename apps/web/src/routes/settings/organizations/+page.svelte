@@ -19,6 +19,7 @@
 			Share documents with your organization. You can create one organization and join others.
 		</p>
 	</div>
+	{#if form?.message}<p role="alert" class="text-destructive text-sm">{form.message}</p>{/if}
 	{#if data.invitations.length}
 		<section class="space-y-3">
 			<h2 class="font-medium">Invitations</h2>
@@ -76,7 +77,7 @@
 					required
 					maxlength={80}
 					placeholder="Acme"
-					value={form?.name ?? ''}
+					value={form && 'name' in form ? form.name : ''}
 				/>
 			</div>
 			<div class="space-y-2">
@@ -88,13 +89,12 @@
 					maxlength={48}
 					pattern="[a-z0-9]+(-[a-z0-9]+)*"
 					placeholder="acme"
-					value={form?.slug ?? ''}
+					value={form && 'slug' in form ? form.slug : ''}
 				/>
 				<p class="text-muted-foreground text-xs">
 					A unique name you can use with <code>folio push --org acme</code>.
 				</p>
 			</div>
-			{#if form?.message}<p role="alert" class="text-destructive text-sm">{form.message}</p>{/if}
 			<Button type="submit">Create organization</Button>
 		</form>
 	{/if}

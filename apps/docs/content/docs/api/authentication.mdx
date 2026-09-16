@@ -47,7 +47,8 @@ Domain errors have a JSON body with a `_tag` field:
 | 404         | `DocumentNotFound`     | `id`             |
 | 404         | `CommentNotFound`      | `id`             |
 | 404         | `OrganizationNotFound` | `message`        |
-| 409         | `Conflict`             | `message`        |
+
+Organization management uses Better Auth endpoints under `/auth/organization`. Those endpoints return Better Auth errors with `code` and `message` fields. See the [organization API](/docs/api/organizations).
 
 Invalid payloads are rejected by schema validation. Transport, validation, and authentication-library errors may use a different body shape. Clients must check the HTTP status before assuming a domain-error format.
 

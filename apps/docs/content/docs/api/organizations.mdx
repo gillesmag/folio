@@ -1,0 +1,27 @@
+---
+title: Organizations
+description: Better Auth endpoints and Folio's organization rules.
+---
+
+Folio uses the [Better Auth organization plugin](https://www.better-auth.com/docs/plugins/organization). Its routes live under `/auth/organization` on the Folio web origin. They accept the same session cookies, bearer tokens, and API keys as document requests.
+
+| Method | Path                                                         | Purpose                                                      |
+| ------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `GET`  | `/auth/organization/list`                                    | List organizations you belong to                             |
+| `POST` | `/auth/organization/create`                                  | Create an organization with `name` and `slug`                |
+| `GET`  | `/auth/organization/get-full-organization?organizationId=ID` | Read organization details and members                        |
+| `POST` | `/auth/organization/invite-member`                           | Invite an email with `organizationId` and `role: "member"`   |
+| `GET`  | `/auth/organization/list-user-invitations`                   | List your pending invitations                                |
+| `POST` | `/auth/organization/accept-invitation`                       | Accept an `invitationId`                                     |
+| `POST` | `/auth/organization/reject-invitation`                       | Decline an `invitationId`                                    |
+| `POST` | `/auth/organization/cancel-invitation`                       | Cancel an `invitationId` as its organization creator         |
+| `POST` | `/auth/organization/remove-member`                           | Remove a member using `organizationId` and `memberIdOrEmail` |
+| `POST` | `/auth/organization/leave`                                   | Leave an `organizationId`                                    |
+
+Each user can create one organization and join others. The creator has Better Auth's `owner` role. Invitees receive the `member` role. Folio limits organization management to invitations and member removal; organization deletion, renaming, and role changes are disabled.
+
+Invitations expire after seven days and require a verified email address to accept. Folio displays invitations in the app and does not send email. Pending invitation lists can include expired records; clients must check `expiresAt` before displaying them.
+
+Personal is the absence of an organization on a document. It has no membership row. Better Auth's active organization setting does not choose a document's destination. CLI uploads still default to Personal unless `--org` is specified.
+
+Document owners keep control of edits and sharing. When a member leaves or is removed, their documents return to Personal. Organization membership grants reading and commenting, without transferring document ownership.

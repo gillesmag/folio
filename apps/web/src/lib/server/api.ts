@@ -1,6 +1,5 @@
 import {
 	Api,
-	Conflict,
 	OrganizationNotFound,
 	Comment,
 	Document,
@@ -75,7 +74,6 @@ export const run = async <A, E>(
 	if (err instanceof Unauthorized) {
 		redirect(303, `/login?next=${encodeURIComponent(event.url.pathname)}`);
 	}
-	if (err instanceof Conflict) error(409, err.message);
 	if (err instanceof OrganizationNotFound) error(404, err.message);
 	if (err instanceof Forbidden) error(403, err.message);
 	if (err instanceof DocumentNotFound) error(404, 'Document not found');

@@ -17,7 +17,7 @@ const worker = server.getWorker<Env>();
 let db: D1Database;
 
 async function request(user: string | null, path: string, method = 'GET', body?: unknown) {
-	return worker.fetch(`/api${path}`, {
+	return worker.fetch(path, {
 		method,
 		headers: {
 			...(user ? { Authorization: `Bearer test-token-${user}` } : {}),
@@ -38,6 +38,21 @@ async function json(
 	expect(response.status, text).toBe(status);
 	return text ? JSON.parse(text) : undefined;
 }
+const org = (user: string, slug: string, extra = {}) =>
+	json(user, '/auth/organization/create', 'POST', { name: slug, slug, ...extra });
+const invite = (user: string, organizationId: string, email: string, extra = {}) =>
+	json(user, '/auth/organization/invite-member', 'POST', {
+		organizationId,
+		email,
+		role: 'member',
+		...extra
+	});
+const accept = (user: string, invitationId: string) =>
+	json(user, '/auth/organization/accept-invitation', 'POST', { invitationId });
+const details = (user: string, id: string) =>
+	json(user, `/auth/organization/get-full-organization?organizationId=${id}`);
+const createDocument = (user: string, organization?: string) =>
+	json(user, '/api/documents', 'POST', { source: '# Notes', organization }, 201);
 
 beforeAll(async () => {
 	await server.listen();
@@ -46,6 +61,7 @@ beforeAll(async () => {
 }, 60_000);
 beforeEach(async () => {
 	await db.prepare('DELETE FROM user').run();
+	await db.prepare('DELETE FROM rateLimit').run();
 	for (const user of ['alice', 'bob', 'carol', 'unverified']) {
 		await db
 			.prepare(
@@ -74,208 +90,222 @@ beforeEach(async () => {
 			)
 			.run();
 	}
-}, 60_000);
+});
 afterAll(async () => {
 	await server.close();
 });
 
-test('organization sharing, ownership, invitations, and Personal defaults', async () => {
-	await json(null, '/organizations', 'GET', undefined, 401);
-	const org = await json('alice', '/organizations', 'POST', { name: 'Acme', slug: 'acme' }, 201);
-	await json('alice', '/organizations', 'POST', { name: 'Second', slug: 'second' }, 409);
-	await json('bob', '/organizations', 'POST', { name: 'Duplicate', slug: 'acme' }, 409);
-	await json('bob', '/organizations', 'POST', { name: 'Reserved', slug: 'personal' }, 409);
-	const other = await json(
-		'carol',
-		'/organizations',
-		'POST',
-		{ name: 'Other', slug: 'other' },
-		201
-	);
-	expect(await json('bob', '/organizations')).toEqual([]);
-	await json('bob', `/organizations/${org.id}`, 'GET', undefined, 404);
+test('API keys can manage organizations and upload documents to them', async () => {
+	const { key } = await json('alice', '/auth/api-key/create', 'POST', { name: 'Agent' });
+	const headers = { 'x-api-key': key, 'content-type': 'application/json' };
+	const created = await worker.fetch('/auth/organization/create', {
+		method: 'POST',
+		headers,
+		body: JSON.stringify({ name: 'Acme', slug: 'acme' })
+	});
+	expect(created.status, await created.clone().text()).toBe(200);
+	const organization = (await created.json()) as { id: string; slug: string };
+	const listed = await worker.fetch('/auth/organization/list', { headers });
+	expect(await listed.json()).toMatchObject([{ id: organization.id }]);
+	const uploaded = await worker.fetch('/api/documents', {
+		method: 'POST',
+		headers,
+		body: JSON.stringify({ source: '# Agent notes', organization: organization.slug })
+	});
+	expect(uploaded.status).toBe(201);
+	expect(await uploaded.json()).toMatchObject({
+		ownerId: 'alice',
+		organizationId: organization.id
+	});
+});
+
+test('Better Auth manages membership while Folio retains document ownership and Personal defaults', async () => {
+	await json(null, '/auth/organization/list', 'GET', undefined, 401);
+	const acme = await org('alice', 'acme', { creatorId: 'carol' });
+	expect(acme.creatorId).toBe('alice');
+	expect(acme.members).toMatchObject([{ userId: 'alice', role: 'owner' }]);
+	await json('alice', '/auth/organization/create', 'POST', { name: 'Second', slug: 'second' }, 403);
+	await json('bob', '/auth/organization/create', 'POST', { name: 'Duplicate', slug: 'acme' }, 400);
 	await json(
 		'bob',
-		`/organizations/${org.id}/invitations`,
+		'/auth/organization/create',
 		'POST',
-		{ email: 'carol@example.com' },
-		404
+		{ name: 'Reserved', slug: 'personal' },
+		400
 	);
 	await json(
-		'alice',
-		`/organizations/${org.id}/invitations`,
-		'POST',
-		{ email: 'bob@example.com' },
-		204
-	);
-	const [invitation] = await json('bob', '/organizations/invitations');
-	await json('carol', `/organizations/invitations/${invitation.id}/accept`, 'POST', undefined, 404);
-	await json('bob', `/organizations/invitations/${invitation.id}/accept`, 'POST', undefined, 204);
-	expect(await json('bob', '/organizations/invitations')).toEqual([]);
-	expect((await json('bob', '/organizations')).map((o: { id: string }) => o.id)).toEqual([org.id]);
-	const bobsOrg = await json(
 		'bob',
-		'/organizations',
-		'POST',
-		{ name: 'Bob team', slug: 'bob-team' },
-		201
+		`/auth/organization/get-full-organization?organizationId=${acme.id}`,
+		'GET',
+		undefined,
+		403
 	);
-	expect((await json('bob', '/organizations')).length).toBe(2);
+	await accept('bob', (await invite('alice', acme.id, 'bob@example.com')).id);
+	const bobsOrg = await org('bob', 'bob-team');
+	expect((await json('bob', '/auth/organization/list')).length).toBe(2);
 	await json(
 		'bob',
-		`/organizations/${org.id}/invitations`,
+		'/auth/organization/invite-member',
 		'POST',
-		{ email: 'carol@example.com' },
+		{ organizationId: acme.id, email: 'carol@example.com', role: 'member' },
 		403
 	);
 	await json(
 		'alice',
-		`/organizations/${org.id}/invitations`,
+		'/auth/organization/invite-member',
 		'POST',
-		{ email: 'bob@example.com' },
-		409
+		{ organizationId: acme.id, email: 'carol@example.com', role: 'owner' },
+		400
 	);
-
-	const personal = await json('alice', '/documents', 'POST', { source: '# Personal' }, 201);
-	expect(personal.organizationId).toBeNull();
-	await json('bob', `/documents/${personal.id}`, 'GET', undefined, 404);
-	const shared = await json(
+	await json(
 		'alice',
-		'/documents',
+		'/auth/organization/update-member-role',
 		'POST',
-		{ source: '# Shared', organization: org.slug },
-		201
+		{ organizationId: acme.id, memberId: acme.members[0].id, role: 'member' },
+		400
 	);
-	expect(shared.organizationId).toBe(org.id);
+	await json(
+		'alice',
+		'/auth/organization/update',
+		'POST',
+		{ organizationId: acme.id, data: { creatorId: 'carol' } },
+		403
+	);
+	await json('alice', '/auth/organization/delete', 'POST', { organizationId: acme.id }, 404);
+
+	// Creating and accepting an organization sets an active organization in Better Auth.
+	// That session setting must never become the upload destination.
+	const personal = await createDocument('alice');
+	expect(personal.organizationId).toBeNull();
+	await json('bob', `/api/documents/${personal.id}`, 'GET', undefined, 404);
+	const shared = await createDocument('alice', acme.slug);
+	expect(shared.organizationId).toBe(acme.id);
 	expect(shared.ownerId).toBe('alice');
-	await json(null, `/documents/${shared.id}`, 'GET', undefined, 404);
-	await json('carol', `/documents/${shared.id}`, 'GET', undefined, 404);
-	await json('carol', '/documents', 'POST', { source: '# No', organization: org.id }, 404);
-	await json('alice', '/documents', 'POST', { source: '# No', organization: 'missing' }, 404);
-	await json('alice', `/documents/${shared.id}`, 'PATCH', { organization: other.id }, 404);
-	expect((await json('bob', '/documents')).map((d: { id: string }) => d.id)).toEqual([shared.id]);
-	expect((await json('bob', `/documents/${shared.id}`)).source).toBe('# Shared');
-	await json('bob', `/documents/${shared.id}`, 'PATCH', { organization: bobsOrg.id }, 403);
-	await json('bob', `/documents/${shared.id}`, 'PUT', { source: '# No' }, 403);
-	await json('bob', `/documents/${shared.id}`, 'DELETE', undefined, 403);
+	await json(null, `/api/documents/${shared.id}`, 'GET', undefined, 404);
+	await json('carol', `/api/documents/${shared.id}`, 'GET', undefined, 404);
+	await json('carol', '/api/documents', 'POST', { source: '# No', organization: acme.id }, 404);
+	await json('alice', '/api/documents', 'POST', { source: '# No', organization: 'missing' }, 404);
+	expect((await json('bob', '/api/documents')).map((d: { id: string }) => d.id)).toEqual([
+		shared.id
+	]);
+	await json('bob', `/api/documents/${shared.id}`);
+	await json('bob', `/api/documents/${shared.id}`, 'PATCH', { organization: bobsOrg.id }, 403);
+	await json('bob', `/api/documents/${shared.id}`, 'PUT', { source: '# No' }, 403);
+	await json('bob', `/api/documents/${shared.id}`, 'DELETE', undefined, 403);
 	const comment = await json(
 		'bob',
-		`/documents/${shared.id}/comments`,
+		`/api/documents/${shared.id}/comments`,
 		'POST',
 		{ body: 'Team feedback' },
 		201
 	);
-	expect((await json('alice', `/documents/${shared.id}/comments`))[0].id).toBe(comment.id);
-	await json('carol', `/documents/${shared.id}/comments`, 'GET', undefined, 404);
-	await json('carol', `/documents/${shared.id}/comments`, 'POST', { body: 'No' }, 404);
-	await json('alice', `/documents/${shared.id}`, 'PUT', { source: '# Edited' });
-	expect((await json('bob', `/documents/${shared.id}`)).organizationId).toBe(org.id);
-	const moved = await json('alice', `/documents/${shared.id}`, 'PATCH', {
+	await json('carol', `/api/documents/${shared.id}/comments`, 'GET', undefined, 404);
+	await json('alice', `/api/documents/${shared.id}`, 'PUT', { source: '# Edited' });
+	expect((await json('bob', `/api/documents/${shared.id}`)).organizationId).toBe(acme.id);
+	const moved = await json('alice', `/api/documents/${shared.id}`, 'PATCH', {
 		organization: 'personal'
 	});
 	expect(moved.ownerId).toBe('alice');
 	expect(moved.organizationId).toBeNull();
-	await json('bob', `/documents/${shared.id}`, 'GET', undefined, 404);
-	await json('bob', `/documents/${shared.id}/comments`, 'GET', undefined, 404);
-	await json('bob', `/comments/${comment.id}`, 'PATCH', { resolved: true }, 404);
-	await json('bob', `/comments/${comment.id}`, 'DELETE', undefined, 404);
-	expect(await json('bob', '/documents')).toEqual([]);
-	await json('alice', `/documents/${shared.id}`, 'PATCH', { organization: org.id });
-	await json('bob', `/documents/${shared.id}`);
-	await json(
-		'carol',
-		`/organizations/${other.id}/invitations`,
-		'POST',
-		{ email: 'alice@example.com' },
-		204
-	);
-	const [otherInvitation] = await json('alice', '/organizations/invitations');
-	await json(
-		'alice',
-		`/organizations/invitations/${otherInvitation.id}/accept`,
-		'POST',
-		undefined,
-		204
-	);
-	const transferred = await json('alice', `/documents/${shared.id}`, 'PATCH', {
-		organization: other.slug
+	await json('bob', `/api/documents/${shared.id}`, 'GET', undefined, 404);
+	await json('bob', `/api/documents/${shared.id}/comments`, 'GET', undefined, 404);
+	await json('bob', `/api/comments/${comment.id}`, 'PATCH', { resolved: true }, 404);
+	await json('bob', `/api/comments/${comment.id}`, 'DELETE', undefined, 404);
+	expect(await json('bob', '/api/documents')).toEqual([]);
+	await accept('alice', (await invite('bob', bobsOrg.id, 'alice@example.com')).id);
+	const transferred = await json('alice', `/api/documents/${shared.id}`, 'PATCH', {
+		organization: bobsOrg.id
 	});
-	expect(transferred.organizationId).toBe(other.id);
 	expect(transferred.ownerId).toBe('alice');
-	await json('bob', `/documents/${shared.id}`, 'GET', undefined, 404);
-	await json('carol', `/documents/${shared.id}`);
-	await json('alice', `/documents/${shared.id}`, 'PATCH', { organization: org.id });
-	await json('carol', `/documents/${shared.id}`, 'GET', undefined, 404);
-	const bobDoc = await json(
-		'bob',
-		'/documents',
-		'POST',
-		{ source: '# Bob owns this', organization: org.id },
-		201
+	expect(transferred.organizationId).toBe(bobsOrg.id);
+	await json('alice', `/api/documents/${shared.id}`, 'PATCH', { organization: acme.id });
+
+	const bobDoc = await createDocument('bob', acme.id);
+	await json('alice', `/api/documents/${bobDoc.id}`, 'PATCH', { title: 'No' }, 403);
+	await json('alice', '/auth/organization/leave', 'POST', { organizationId: acme.id }, 400);
+	const bobMember = (await details('alice', acme.id)).members.find(
+		(m: { userId: string }) => m.userId === 'bob'
 	);
-	await json('alice', `/documents/${bobDoc.id}`, 'PATCH', { title: 'No' }, 403);
-	await json('alice', `/organizations/${org.id}/members/alice`, 'DELETE', undefined, 403);
-	await json('alice', `/organizations/${org.id}/members/bob`, 'DELETE', undefined, 204);
-	await json('bob', `/documents/${shared.id}`, 'GET', undefined, 404);
-	expect((await json('bob', `/documents/${bobDoc.id}`)).organizationId).toBeNull();
-	expect((await json('bob', `/documents/${bobDoc.id}`)).ownerId).toBe('bob');
-	await json('alice', `/documents/${bobDoc.id}`, 'GET', undefined, 404);
-	await json('alice', `/documents/${shared.id}`, 'PATCH', { visibility: 'unlisted' });
-	await json(null, `/documents/${shared.id}`);
-	await json('alice', `/documents/${shared.id}`, 'PATCH', { visibility: 'private' });
-	await json(null, `/documents/${shared.id}`, 'GET', undefined, 404);
+	await json('alice', '/auth/organization/remove-member', 'POST', {
+		organizationId: acme.id,
+		memberIdOrEmail: bobMember.id
+	});
+	await json('bob', `/api/documents/${shared.id}`, 'GET', undefined, 404);
+	expect((await json('bob', `/api/documents/${bobDoc.id}`)).organizationId).toBeNull();
+	await json('alice', `/api/documents/${bobDoc.id}`, 'GET', undefined, 404);
+	await json('alice', `/api/documents/${shared.id}`, 'PATCH', { visibility: 'unlisted' });
+	await json(null, `/api/documents/${shared.id}`);
+	await json('alice', `/api/documents/${shared.id}`, 'PATCH', { visibility: 'private' });
+	await json(null, `/api/documents/${shared.id}`, 'GET', undefined, 404);
 }, 60_000);
 
-test('invitation expiry, cancellation, verified email, and self-departure', async () => {
-	const org = await json('alice', '/organizations', 'POST', { name: 'Acme', slug: 'acme' }, 201);
-	for (const user of ['bob', 'carol', 'unverified']) {
-		await json(
-			'alice',
-			`/organizations/${org.id}/invitations`,
-			'POST',
-			{ email: `${user}@example.com` },
-			204
-		);
-	}
-	const invitations = (await json('alice', `/organizations/${org.id}`)).invitations;
-	const unverified = invitations.find(
-		(i: { email: string }) => i.email === 'unverified@example.com'
+test('native invitations enforce verified recipients, expiration, cancellation, and departure', async () => {
+	const acme = await org('alice', 'acme');
+	const bob = await invite('alice', acme.id, 'bob@example.com');
+	const carol = await invite('alice', acme.id, 'carol@example.com');
+	const unverified = await invite('alice', acme.id, 'unverified@example.com');
+	await json(
+		'carol',
+		'/auth/organization/accept-invitation',
+		'POST',
+		{ invitationId: bob.id },
+		403
 	);
-	expect(await json('unverified', '/organizations/invitations')).toEqual([]);
+	await json('unverified', '/auth/organization/list-user-invitations', 'GET', undefined, 403);
 	await json(
 		'unverified',
-		`/organizations/invitations/${unverified.id}/accept`,
+		'/auth/organization/accept-invitation',
 		'POST',
-		undefined,
-		404
+		{ invitationId: unverified.id },
+		403
 	);
-	const bob = invitations.find((i: { email: string }) => i.email === 'bob@example.com');
 	await db
-		.prepare('UPDATE organization_invitation SET expiresAt = ? WHERE id = ?')
-		.bind('2000-01-01T00:00:00.000Z', bob.id)
+		.prepare('UPDATE invitation SET expiresAt = ? WHERE id = ?')
+		.bind(Date.now() - 1000, bob.id)
 		.run();
-	await json('bob', `/organizations/invitations/${bob.id}/accept`, 'POST', undefined, 404);
+	await json('bob', '/auth/organization/accept-invitation', 'POST', { invitationId: bob.id }, 400);
+	const renewed = await invite('alice', acme.id, 'BOB@example.com', { resend: true });
+	await accept('bob', renewed.id);
+	expect(
+		(await json('bob', '/auth/organization/list-user-invitations')).every(
+			(i: { expiresAt: string }) => new Date(i.expiresAt).getTime() <= Date.now()
+		)
+	).toBe(true);
+	const bobDoc = await createDocument('bob', acme.id);
+	await json('bob', '/auth/organization/leave', 'POST', { organizationId: acme.id });
+	expect((await json('bob', `/api/documents/${bobDoc.id}`)).organizationId).toBeNull();
+	await json('alice', `/api/documents/${bobDoc.id}`, 'GET', undefined, 404);
 	await json(
-		'alice',
-		`/organizations/${org.id}/invitations`,
+		'bob',
+		'/auth/organization/cancel-invitation',
 		'POST',
-		{ email: 'BOB@example.com' },
-		204
+		{ invitationId: carol.id },
+		400
 	);
-	const [renewed] = await json('bob', '/organizations/invitations');
-	await json('bob', `/organizations/invitations/${renewed.id}/accept`, 'POST', undefined, 204);
-	await json('bob', `/organizations/${org.id}/members/bob`, 'DELETE', undefined, 204);
-	const carol = invitations.find((i: { email: string }) => i.email === 'carol@example.com');
-	await json('bob', `/organizations/invitations/${carol.id}`, 'DELETE', undefined, 404);
-	await json('alice', `/organizations/invitations/${carol.id}`, 'DELETE', undefined, 204);
-	await json('carol', `/organizations/invitations/${carol.id}/accept`, 'POST', undefined, 404);
+	await json('alice', '/auth/organization/cancel-invitation', 'POST', { invitationId: carol.id });
+	await json(
+		'carol',
+		'/auth/organization/accept-invitation',
+		'POST',
+		{ invitationId: carol.id },
+		400
+	);
+	const declined = await invite('alice', acme.id, 'carol@example.com');
+	await json('carol', '/auth/organization/reject-invitation', 'POST', {
+		invitationId: declined.id
+	});
+	expect(await json('carol', '/auth/organization/list-user-invitations')).toEqual([]);
 });
 
-test('concurrent organization creation still permits at most one', async () => {
+test('the database enforces one creation even for concurrent plugin requests', async () => {
 	const responses = await Promise.all(
 		['one', 'two'].map((slug) =>
-			request('unverified', '/organizations', 'POST', { name: slug, slug })
+			request('alice', '/auth/organization/create', 'POST', { name: slug, slug })
 		)
 	);
-	expect(responses.map((r) => r.status).sort()).toEqual([201, 409]);
+	expect(responses.filter((r) => r.ok)).toHaveLength(1);
+	expect(
+		(await db.prepare("SELECT id FROM organization WHERE creatorId = 'alice'").all()).results
+	).toHaveLength(1);
+	expect(await json('alice', '/auth/organization/list')).toHaveLength(1);
 });

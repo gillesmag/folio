@@ -1,6 +1,6 @@
 ---
 title: API reference
-description: HTTP endpoints for documents, comments, health checks, and the current user.
+description: HTTP endpoints for documents, comments, organizations, health checks, and the current user.
 ---
 
 The API lives at `/api` on your Folio web origin, for example `https://folio.example.com/api`. Request and response bodies use JSON unless the endpoint returns `204 No Content`.
@@ -32,6 +32,10 @@ Authentication is implemented by the server's middleware. The generated contract
 | `DELETE` | `/api/comments/{id}`                   | [Delete a comment](/docs/api/endpoints/comments-remove)             |
 
 [Comment behavior](/docs/api/comments) covers anchors and permissions.
+
+## Organizations
+
+Better Auth manages organizations, memberships, and invitations under `/auth/organization`. These routes are separate from the generated document API. See the [organization API](/docs/api/organizations).
 
 ## System
 

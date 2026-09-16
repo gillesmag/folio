@@ -1,65 +1,61 @@
-import { InvitationInput, OrganizationId, UserId } from '@folio/contract';
 import { fail, redirect } from '@sveltejs/kit';
-import { Effect, Schema } from 'effect';
-import { client, run } from '$lib/server/api';
+import { authClient, authData } from '$lib/server/auth';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) redirect(303, `/login?next=${encodeURIComponent(event.url.pathname)}`);
-	return run(
-		event,
-		Effect.flatMap(client(event), (c) =>
-			c.organizations.details({ params: { id: OrganizationId.make(event.params.id) } })
-		)
+	const { members, invitations, ...organization } = authData(
+		await authClient(event).organization.getFullOrganization({
+			query: { organizationId: event.params.id }
+		})
 	);
+	return {
+		organization,
+		members,
+		invitations:
+			organization.creatorId === event.locals.user.id
+				? invitations.filter(
+						(i) => i.status === 'pending' && new Date(i.expiresAt).getTime() > Date.now()
+					)
+				: []
+	};
 };
 
 export const actions: Actions = {
 	invite: async (event) => {
 		const form = await event.request.formData();
-		const decoded = Schema.decodeUnknownExit(InvitationInput)({
-			email: String(form.get('email') ?? '')
-				.trim()
-				.toLowerCase()
+		const email = String(form.get('email') ?? '')
+			.trim()
+			.toLowerCase();
+		const result = await authClient(event).organization.inviteMember({
+			organizationId: event.params.id,
+			email,
+			role: 'member',
+			resend: true
 		});
-		if (decoded._tag === 'Failure') return fail(400, { message: 'Enter a valid email address' });
-		const result = await run(
-			event,
-			Effect.flatMap(client(event), (c) =>
-				c.organizations.invite({
-					params: { id: OrganizationId.make(event.params.id) },
-					payload: decoded.value
-				})
-			).pipe(
-				Effect.as({ ok: true }),
-				Effect.catchTag('Conflict', (e) => Effect.succeed({ message: e.message }))
-			)
-		);
-		if ('message' in result) return fail(409, result);
-		return { invited: decoded.value.email };
+		if (result.error) return fail(result.error.status, { message: result.error.message });
+		return { invited: email };
 	},
 	cancelInvitation: async (event) => {
 		const form = await event.request.formData();
-		await run(
-			event,
-			Effect.flatMap(client(event), (c) =>
-				c.organizations.cancelInvitation({ params: { id: String(form.get('id') ?? '') } })
-			)
-		);
+		const result = await authClient(event).organization.cancelInvitation({
+			invitationId: String(form.get('id') ?? '')
+		});
+		if (result.error) return fail(result.error.status, { message: result.error.message });
 		return { ok: true };
 	},
 	removeMember: async (event) => {
 		const form = await event.request.formData();
-		const userId = UserId.make(String(form.get('userId') ?? ''));
-		await run(
-			event,
-			Effect.flatMap(client(event), (c) =>
-				c.organizations.removeMember({
-					params: { id: OrganizationId.make(event.params.id), userId }
-				})
-			)
-		);
-		if (userId === event.locals.user?.id) redirect(303, '/settings/organizations');
+		const result = await authClient(event).organization.removeMember({
+			organizationId: event.params.id,
+			memberIdOrEmail: String(form.get('memberId') ?? '')
+		});
+		if (result.error) return fail(result.error.status, { message: result.error.message });
 		return { ok: true };
+	},
+	leave: async (event) => {
+		const result = await authClient(event).organization.leave({ organizationId: event.params.id });
+		if (result.error) return fail(result.error.status, { message: result.error.message });
+		redirect(303, '/settings/organizations');
 	}
 };

@@ -6,12 +6,6 @@ export class OrganizationNotFound extends Schema.TaggedError<OrganizationNotFoun
 	{ httpApiStatus: 404 }
 ) {}
 
-export class Conflict extends Schema.TaggedError<Conflict>()(
-	'Conflict',
-	{ message: Schema.String },
-	{ httpApiStatus: 409 }
-) {}
-
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
 	'Unauthorized',
 	{ message: Schema.String },

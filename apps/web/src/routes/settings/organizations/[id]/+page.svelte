@@ -23,6 +23,7 @@
 			Organization ID: <code>{data.organization.id}</code>
 		</p>
 	</div>
+	{#if form?.message}<p role="alert" class="text-destructive text-sm">{form.message}</p>{/if}
 	{#if isCreator}
 		<form method="post" action="?/invite" use:enhance class="space-y-2">
 			<Label for="invite-email">Invite by email</Label>
@@ -40,7 +41,6 @@
 				Ask them to sign in and open Organizations to accept. Invitations expire after 7 days. No
 				email is sent.
 			</p>
-			{#if form?.message}<p role="alert" class="text-destructive text-sm">{form.message}</p>{/if}
 			{#if form?.invited}<p role="status" class="text-sm">
 					Invitation ready for {form.invited}.
 				</p>{/if}
@@ -52,16 +52,21 @@
 			{#each data.members as member (member.id)}
 				<li class="flex items-center gap-3 py-3">
 					<div class="min-w-0 flex-1">
-						<p class="truncate text-sm font-medium">{member.name}</p>
-						<p class="text-muted-foreground truncate text-xs">{member.email}</p>
+						<p class="truncate text-sm font-medium">{member.user.name}</p>
+						<p class="text-muted-foreground truncate text-xs">{member.user.email}</p>
 					</div>
-					{#if member.id === data.organization.creatorId}<Badge variant="outline">Creator</Badge>
-					{:else if isCreator || member.id === data.user?.id}
-						<form method="post" action="?/removeMember" use:enhance>
-							<input type="hidden" name="userId" value={member.id} /><Button
+					{#if member.userId === data.organization.creatorId}<Badge variant="outline">Creator</Badge
+						>
+					{:else if isCreator || member.userId === data.user?.id}
+						<form
+							method="post"
+							action={member.userId === data.user?.id ? '?/leave' : '?/removeMember'}
+							use:enhance
+						>
+							<input type="hidden" name="memberId" value={member.id} /><Button
 								type="submit"
 								variant="ghost"
-								size="sm">{member.id === data.user?.id ? 'Leave' : 'Remove'}</Button
+								size="sm">{member.userId === data.user?.id ? 'Leave' : 'Remove'}</Button
 							>
 						</form>
 					{/if}

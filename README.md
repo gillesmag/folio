@@ -131,6 +131,8 @@ Add to `apps/web/wrangler.jsonc` and redeploy the web app, then set the API buil
 
 ## Organizations
 
+Better Auth's organization plugin manages organizations, memberships, and invitations. Folio uses its membership rows to check document access.
+
 Open **Organizations** from your profile menu to create an organization or accept an invitation. Each user can create one organization and join others. The creator invites members by email. Recipients sign in with that email and accept under **Organizations**. Invitations expire after seven days; Folio does not send email.
 
 Documents start in **Personal**. Open a document's **Share** dialog to move it to an organization or back to Personal. Members can read and comment; the document owner keeps control of edits, sharing, and deletion. The document list labels each organization and has a dropdown filter. When a member leaves or is removed, their documents return to Personal.

@@ -1,6 +1,7 @@
 import { CommentInput, DocumentId, DocumentPatch } from '@folio/contract';
 import { fail, redirect } from '@sveltejs/kit';
 import { Effect, Schema } from 'effect';
+import { authClient, authData } from '$lib/server/auth';
 import { client, run, toJson } from '$lib/server/api';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -18,10 +19,7 @@ export const load: PageServerLoad = async (event) => {
 		)
 	);
 	const organizations = event.locals.user
-		? await run(
-				event,
-				Effect.flatMap(client(event), (c) => c.organizations.list())
-			)
+		? authData(await authClient(event).organization.list())
 		: [];
 	return {
 		document: toJson.document(document),

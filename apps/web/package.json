@@ -21,6 +21,7 @@
 		"@folio/contract": "workspace:*",
 		"@folio/render": "workspace:*",
 		"@lezer/highlight": "^1.2.3",
+		"better-auth": "1.7.4",
 		"effect": "4.0.0-rc.115",
 		"katex": "^0.18.7",
 		"mermaid": "^12.0.0"

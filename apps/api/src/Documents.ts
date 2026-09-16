@@ -82,8 +82,7 @@ export class Documents extends Context.Service<
 				execute: (owner) =>
 					sql`SELECT id, ownerId, organizationId, title, visibility, version, createdAt, updatedAt
 					    FROM document WHERE ownerId = ${owner} OR organizationId IN (
-						SELECT id FROM organization WHERE creatorId = ${owner}
-						UNION SELECT organizationId FROM organization_member WHERE userId = ${owner}
+						SELECT organizationId FROM member WHERE userId = ${owner}
 						) ORDER BY updatedAt DESC`
 			});
 

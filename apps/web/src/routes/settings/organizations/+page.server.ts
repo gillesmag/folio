@@ -1,20 +1,19 @@
-import { OrganizationInput } from '@folio/contract';
 import { fail, redirect } from '@sveltejs/kit';
-import { Effect, Schema } from 'effect';
-import { client, run } from '$lib/server/api';
+import { authClient, authData } from '$lib/server/auth';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) redirect(303, '/login?next=/settings/organizations');
-	return run(
-		event,
-		Effect.flatMap(client(event), (c) =>
-			Effect.all({
-				organizations: c.organizations.list(),
-				invitations: c.organizations.invitations()
-			})
-		)
-	);
+	const orgs = authClient(event).organization;
+	const [organizations, invitations] = await Promise.all([orgs.list(), orgs.listUserInvitations()]);
+	const pending =
+		invitations.error?.code === 'EMAIL_VERIFICATION_REQUIRED_FOR_INVITATION'
+			? []
+			: authData(invitations);
+	return {
+		organizations: authData(organizations),
+		invitations: pending.filter((i) => new Date(i.expiresAt).getTime() > Date.now())
+	};
 };
 
 export const actions: Actions = {
@@ -26,39 +25,27 @@ export const actions: Actions = {
 				.trim()
 				.toLowerCase()
 		};
-		const decoded = Schema.decodeUnknownExit(OrganizationInput)(raw);
-		if (decoded._tag === 'Failure')
-			return fail(400, {
-				message: 'Enter a name and a slug of 2–48 lowercase letters, numbers, or single hyphens.',
-				...raw
-			});
-		const result = await run(
-			event,
-			Effect.flatMap(client(event), (c) => c.organizations.create({ payload: decoded.value })).pipe(
-				Effect.catchTag('Conflict', (e) => Effect.succeed({ message: e.message }))
-			)
-		);
-		if ('message' in result) return fail(409, { message: result.message, ...raw });
-		redirect(303, `/settings/organizations/${result.id}`);
+		const result = await authClient(event).organization.create({
+			...raw,
+			keepCurrentActiveOrganization: true
+		});
+		if (result.error) return fail(result.error.status, { message: result.error.message, ...raw });
+		redirect(303, `/settings/organizations/${result.data.id}`);
 	},
 	accept: async (event) => {
 		const form = await event.request.formData();
-		await run(
-			event,
-			Effect.flatMap(client(event), (c) =>
-				c.organizations.accept({ params: { id: String(form.get('id') ?? '') } })
-			)
-		);
+		const result = await authClient(event).organization.acceptInvitation({
+			invitationId: String(form.get('id') ?? '')
+		});
+		if (result.error) return fail(result.error.status, { message: result.error.message });
 		return { ok: true };
 	},
 	decline: async (event) => {
 		const form = await event.request.formData();
-		await run(
-			event,
-			Effect.flatMap(client(event), (c) =>
-				c.organizations.cancelInvitation({ params: { id: String(form.get('id') ?? '') } })
-			)
-		);
+		const result = await authClient(event).organization.rejectInvitation({
+			invitationId: String(form.get('id') ?? '')
+		});
+		if (result.error) return fail(result.error.status, { message: result.error.message });
 		return { ok: true };
 	}
 };

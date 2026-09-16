@@ -14,17 +14,9 @@ import {
 	DocumentNotFound,
 	Forbidden,
 	Unauthorized,
-	OrganizationNotFound,
-	Conflict
+	OrganizationNotFound
 } from './errors.ts';
-import { CommentId, DocumentId, OrganizationId, UserId } from './ids.ts';
-import {
-	Organization,
-	OrganizationDetails,
-	OrganizationInput,
-	Invitation,
-	InvitationInput
-} from './Organization.ts';
+import { CommentId, DocumentId } from './ids.ts';
 import { User } from './User.ts';
 
 export class DocumentsApi extends HttpApiGroup.make('documents')
@@ -93,49 +85,6 @@ export class CommentsApi extends HttpApiGroup.make('comments')
 	.middleware(Authentication)
 	.annotateMerge(OpenApi.annotations({ title: 'Comments' })) {}
 
-export class OrganizationsApi extends HttpApiGroup.make('organizations')
-	.add(
-		HttpApiEndpoint.get('list', '/', { success: Schema.Array(Organization), error: Unauthorized }),
-		HttpApiEndpoint.post('create', '/', {
-			payload: OrganizationInput,
-			success: Organization.pipe(HttpApiSchema.status(201)),
-			error: [Unauthorized, Conflict]
-		}),
-		HttpApiEndpoint.get('invitations', '/invitations', {
-			success: Schema.Array(Invitation),
-			error: Unauthorized
-		}),
-		HttpApiEndpoint.post('accept', '/invitations/:id/accept', {
-			params: { id: Schema.String },
-			success: HttpApiSchema.NoContent,
-			error: [Unauthorized, OrganizationNotFound]
-		}),
-		HttpApiEndpoint.delete('cancelInvitation', '/invitations/:id', {
-			params: { id: Schema.String },
-			success: HttpApiSchema.NoContent,
-			error: [Unauthorized, OrganizationNotFound]
-		}),
-		HttpApiEndpoint.get('details', '/:id', {
-			params: { id: OrganizationId },
-			success: OrganizationDetails,
-			error: [Unauthorized, OrganizationNotFound]
-		}),
-		HttpApiEndpoint.post('invite', '/:id/invitations', {
-			params: { id: OrganizationId },
-			payload: InvitationInput,
-			success: HttpApiSchema.NoContent,
-			error: [Unauthorized, OrganizationNotFound, Forbidden, Conflict]
-		}),
-		HttpApiEndpoint.delete('removeMember', '/:id/members/:userId', {
-			params: { id: OrganizationId, userId: UserId },
-			success: HttpApiSchema.NoContent,
-			error: [Unauthorized, OrganizationNotFound, Forbidden]
-		})
-	)
-	.middleware(Authentication)
-	.prefix('/organizations')
-	.annotateMerge(OpenApi.annotations({ title: 'Organizations' })) {}
-
 export class SystemApi extends HttpApiGroup.make('system', { topLevel: true }).add(
 	HttpApiEndpoint.get('health', '/health', { success: HttpApiSchema.NoContent }),
 	HttpApiEndpoint.get('me', '/me', { success: User, error: Unauthorized }).middleware(
@@ -146,7 +95,6 @@ export class SystemApi extends HttpApiGroup.make('system', { topLevel: true }).a
 export class Api extends HttpApi.make('folio')
 	.add(DocumentsApi)
 	.add(CommentsApi)
-	.add(OrganizationsApi)
 	.add(SystemApi)
 	.prefix('/api')
 	.annotateMerge(

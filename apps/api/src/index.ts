@@ -14,11 +14,10 @@ import { CommentsHandlers } from './http/Comments.ts';
 import { DocumentsHandlers } from './http/Documents.ts';
 import { SystemHandlers } from './http/System.ts';
 import { Organizations } from './Organizations.ts';
-import { OrganizationsHandlers } from './http/Organizations.ts';
 import { Render } from './Render.ts';
 
 const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: '/api/openapi.json' }).pipe(
-	Layer.provide([DocumentsHandlers, CommentsHandlers, OrganizationsHandlers, SystemHandlers]),
+	Layer.provide([DocumentsHandlers, CommentsHandlers, SystemHandlers]),
 	// The middleware is resolved both by the handlers and by the router build, so it is provided last.
 	Layer.provide(AuthenticationLayer)
 );
