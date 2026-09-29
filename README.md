@@ -156,4 +156,4 @@ curl -X POST "$FOLIO/api/documents" -H "x-api-key: $KEY" -H 'content-type: appli
 
 ## Contributing
 
-Before sending changes, run the test suite with `pnpm test`. If your change touches the CLI, also run the relevant Cargo tests.
+Before sending changes, run the test suite with `pnpm test` and the linter. If your change touches the CLI, also run the relevant Cargo tests.
