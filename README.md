@@ -153,3 +153,7 @@ Bearer session token (`Authorization: Bearer …`, from `folio login`) or `x-api
 curl -X POST "$FOLIO/api/documents" -H "x-api-key: $KEY" -H 'content-type: application/json' \
   -d '{"source":"# Hello\n\nWorld","visibility":"unlisted"}'
 ```
+
+## Contributing
+
+Before sending changes, run the test suite with `pnpm test`. If your change touches the CLI, also run the relevant Cargo tests.
